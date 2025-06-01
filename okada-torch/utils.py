@@ -15,9 +15,8 @@ def setup(strike, dip, rake, slip):
 
     u_strike  = slip * torch.cos(torch.deg2rad(rake))
     u_dip     = slip * torch.sin(torch.deg2rad(rake))
-    u_tensile = 0.0
 
-    return [ss, cs, sd, cd, u_strike, u_dip, u_tensile]
+    return [ss, cs, sd, cd, u_strike, u_dip]
 
 
 
