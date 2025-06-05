@@ -43,7 +43,7 @@ class OkadaWrapper:
                 z = coords["z"]
                 assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
                 out = DC3D(
-                    alpha_1992, xx, yy, z, dep, 0.0, length, -width, 0.0, u_strike, u_dip, 0.0, compute_strain
+                    alpha_1992, xx, yy, z, depth, dip, 0.0, length, -width, 0.0, u_strike, u_dip, 0.0, compute_strain
                 )
             else:
                 yy = yy + width * cd
@@ -67,12 +67,15 @@ class OkadaWrapper:
     
         # ---- 3. inversely rotate coordinate ----
         if compute_strain:
-            ux, uy, uz, uxx, uxy, uyx, uyy, uzx, uzy = out
+            if "z" in coords:
+                ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz = out
+            else:
+                ux, uy, uz, uxx, uxy, uyx, uyy, uzx, uzy = out
 
-            # derived from surface boundary condition (Okada 1985; eq.42)
-            uxz = - uzx
-            uyz = - uzy
-            uzz = - (uxx + uyy) / 3.0 # assume Poisson medium
+                # derived from surface boundary condition (Okada 1985; eq.42)
+                uxz = - uzx
+                uyz = - uzy
+                uzz = - (uxx + uyy) / 3.0 # assume Poisson medium
 
             ux, uy, uz = rotate_vector(
                 ux, uy, uz, ss, cs

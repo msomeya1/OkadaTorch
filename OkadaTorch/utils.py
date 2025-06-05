@@ -1035,8 +1035,8 @@ class COMMON1:
         self.R2 = self.X2 + self.Y2 + self.D2
         self.R = torch.sqrt(self.R2)
         
-        if (self.R == 0.0).any():
-            raise ValueError("R contains zero(s), which is not allowed.")
+        # if (self.R == 0.0).any():
+        #     raise ValueError("R contains zero(s), which is not allowed.")
         
         self.R3 = self.R**3
         self.R5 = self.R**5
@@ -1123,8 +1123,8 @@ class COMMON2:
         self.Q2 = Q**2
         self.R2 = self.XI2 + self.ET2 + self.Q2
         self.R = torch.sqrt(self.R2)
-        if (self.R == 0.0).any():
-            raise ValueError("R contains zero(s), which is not allowed.")
+        # if (self.R == 0.0).any():
+        #     raise ValueError("R contains zero(s), which is not allowed.")
         
         self.R3 = self.R**3
         self.R5 = self.R**5

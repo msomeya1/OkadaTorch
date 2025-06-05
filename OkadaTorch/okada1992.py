@@ -33,8 +33,8 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
         UXZ,UYZ,UZZ : Z-DERIVATIVE
     """
 
-    if (Z > 0.0).any():
-        raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
+    # if (Z > 0.0).any():
+    #     raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
     
 
     # Initialization
@@ -56,14 +56,18 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
 
 
     # IN CASE OF SINGULAR (R=0)
-    if (C1.R==0.0).any():
-        raise ValueError("SINGULAR (R=0; IRET=1)")
+    # if (C1.R==0.0).any():
+    #     raise ValueError("SINGULAR (R=0; IRET=1)")
     
     DUA = _UA0(X, Y, DD, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
-    for I in range(9):
-        U[I] = U[I] - DUA[I]
-    for I in range(3):
-        U[I+9] = U[I+9] + DUA[I+9]
+    if not compute_strain:
+        for I in range(N_variable):
+            U[I] = U[I] - DUA[I]
+    else:
+        for I in range(9):
+            U[I] = U[I] - DUA[I]
+        for I in range(3):
+            U[I+9] = U[I+9] + DUA[I+9]
 
 
 
@@ -114,9 +118,17 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
                     :   =1....SINGULAR
                     :   =2....POSITIVE Z WAS GIVEN
     """
+
+    # if (Z > 0.0).any():
+    #     raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
+    # if z>0, instead of throwing error, overrite z to be zero
+    # Z = torch.where(
+    #     Z > 0.0,
+    #     0.0,
+    #     Z
+    # )
     
-    if (Z > 0.0).any():
-        raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
+
 
 
     # Initialization
@@ -171,35 +183,40 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
 
     # REJECT SINGULAR CASE
     ## ON FAULT EDGE
-    if (Q == 0.0 and ( 
-        (XI[0] * XI[1] <= 0.0 and ET[0] * ET[1] == 0.0) or 
-        (ET[0] * ET[1] <= 0.0 and XI[0] * XI[1] == 0.0)
-        )).any():
-        raise ValueError("SINGULAR (IRET=1)")
-
+    # if torch.logical_and(Q == 0.0, torch.logical_or( 
+    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    #     )).any():
+    #     raise ValueError("SINGULAR (IRET=1)")
+    # if singular, instead of throwing error, overrite results to be zero
+    # mask1 = torch.logical_and(Q == 0.0, torch.logical_or( 
+    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    # ))
 
     
     ## ON NEGATIVE EXTENSION OF FAULT EDGE
     R12 = torch.sqrt(XI[0]**2 + ET[1]**2 + Q**2)
     R21 = torch.sqrt(XI[1]**2 + ET[0]**2 + Q**2)
     R22 = torch.sqrt(XI[1]**2 + ET[1]**2 + Q**2)
+
     KXI[0] = torch.where(
-        XI[0] < 0.0 and R21 + XI[1] < EPS,
+        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < EPS),
         1,
         0
     )
     KXI[1] = torch.where(
-        XI[0] < 0.0 and R22 + XI[1] < EPS,
+        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < EPS),
         1,
         0
     )
     KET[0] = torch.where(
-        ET[0] < 0.0 and R12 + ET[1] < EPS,
+        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < EPS),
         1,
         0
     )
     KET[1] = torch.where(
-        ET[0] < 0.0 and R22 + ET[1] < EPS,
+        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < EPS),
         1,
         0
     )
@@ -209,18 +226,18 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
     for K in range(2):
         for J in range(2):
             C2.DCCON2(XI[J], ET[K], Q, SD, CD, KXI[K], KET[J])
-            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2)
+            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
-            for I in range(0, 10, 3):
+            for I in range(0, N_variable-3+1, 3):
                 DU[I]   = -DUA[I]
                 DU[I+1] = -DUA[I+1] * CD + DUA[I+2] * SD
                 DU[I+2] = -DUA[I+1] * SD - DUA[I+2] * CD
-                if not I < 10:
+                if I >= 9:
                     DU[I]   = -DU[I]
                     DU[I+1] = -DU[I+1]
                     DU[I+2] = -DU[I+2]
 
-            for I in range(12):
+            for I in range(N_variable):
                 if (J + K != 1):
                     U[I] = U[I] + DU[I]
                 else:
@@ -248,11 +265,16 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
 
     # REJECT SINGULAR CASE
     ## ON FAULT EDGE
-    if (Q == 0.0 and ( 
-        (XI[0] * XI[1] <= 0.0 and ET[0] * ET[1] == 0.0) or 
-        (ET[0] * ET[1] <= 0.0 and XI[0] * XI[1] == 0.0)
-        )).any():
-        raise ValueError("SINGULAR (IRET=1)")
+    # if torch.logical_and(Q == 0.0, torch.logical_or( 
+    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    #     )).any():
+    #     raise ValueError("SINGULAR (IRET=1)")
+    # if singular, instead of throwing error, overrite results to be zero
+    # mask2 = torch.logical_and(Q == 0.0, torch.logical_or( 
+    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    # ))
 
 
     
@@ -262,22 +284,22 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
     R21 = torch.sqrt(XI[1]**2 + ET[0]**2 + Q**2)
     R22 = torch.sqrt(XI[1]**2 + ET[1]**2 + Q**2)
     KXI[0] = torch.where(
-        XI[0] < 0.0 and R21 + XI[1] < EPS,
+        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < EPS),
         1,
         0
     )
     KXI[1] = torch.where(
-        XI[0] < 0.0 and R22 + XI[1] < EPS,
+        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < EPS),
         1,
         0
     )
     KET[0] = torch.where(
-        ET[0] < 0.0 and R12 + ET[1] < EPS,
+        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < EPS),
         1,
         0
     )
     KET[1] = torch.where(
-        ET[0] < 0.0 and R22 + ET[1] < EPS,
+        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < EPS),
         1,
         0
     )
@@ -287,20 +309,21 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
     for K in range(2):
         for J in range(2):
             C2.DCCON2(XI[J], ET[K], Q, SD, CD, KXI[K], KET[J])
-            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2)
-            DUB = _UB(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2)
-            DUC = _UC(XI[J], ET[K] ,Q, Z, DISL1, DISL2, DISL3, C0, C2)
+            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            DUB = _UB(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            DUC = _UC(XI[J], ET[K], Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
-            for I in range(0, 10, 3):
+            for I in range(0, N_variable-3+1, 3):
                 DU[I]   = DUA[I] + DUB[I] + Z * DUC[I]
                 DU[I+1] = (DUA[I+1] + DUB[I+1] + Z * DUC[I+1]) * CD - (DUA[I+2] + DUB[I+2] + Z * DUC[I+2]) * SD
                 DU[I+2] = (DUA[I+1] + DUB[I+1] - Z * DUC[I+1]) * SD + (DUA[I+2] + DUB[I+2] - Z * DUC[I+2]) * CD
-                if not I < 10:
-                    DU[10] = DU[10] + DUC[1]
-                    DU[11] = DU[11] + DUC[2] * CD - DUC[3] * SD
-                    DU[12] = DU[12] - DUC[2] * SD - DUC[3] * CD
+                if compute_strain:
+                    if I >= 9:
+                        DU[9] = DU[9] + DUC[0]
+                        DU[10] = DU[10] + DUC[1] * CD - DUC[2] * SD
+                        DU[11] = DU[11] - DUC[1] * SD - DUC[2] * CD
 
-            for I in range(12):
+            for I in range(N_variable):
                 if (J + K != 1):
                     U[I] = U[I] + DU[I]
                 else:
@@ -308,5 +331,11 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
                     
 
 
-    return U
+    # for I in range(N_variable):
+    #     U[I] = torch.where(
+    #         torch.logical_or(mask1, mask2),
+    #         0.0,
+    #         U[I]
+    #     )
 
+    return U
