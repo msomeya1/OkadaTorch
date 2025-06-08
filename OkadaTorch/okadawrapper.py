@@ -5,15 +5,48 @@ from .okada1992 import DC3D0, DC3D
 from .geometry import setup, rotate_vector, rotate_tensor
 
 
-alpha_1985 = 0.5 # MYU/(LAMBDA+MYU)
-alpha_1992 = 2.0/3.0 # (LAMBDA+MYU)/(LAMBDA+2*MYU)
 
 
 class OkadaWrapper:
+    """
+    Convenient wrapper class to use functions `SPOINT`, `SRECTF`, `DC3D0` and `DC3D`.
+    """
     def __init__(self):
         pass
 
-    def compute(self, coords:dict, params:dict, compute_strain:bool):
+    def compute(self, coords:dict, params:dict, compute_strain:bool, nu=0.25):
+        """
+        Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the observation point are calculated.
+
+        Currently, multiple station coordinates can be specified, but only one set of source parameters can be specified. 
+        If you have multiple sources, you need to call this method multiple times.
+
+        Parameters
+        ----------
+        See the `README` for specific usage.
+
+        coords : dict of tensors
+            `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
+            All corresponding values must be PyTorch tensors of the same shape.
+
+        params : dict of tensors
+            `"x_ref"`, `"y_ref"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys,
+            and `"length"` and `"width"` are optional (all other keys are ignored).
+            All corresponding values must be PyTorch **scaler tensors** (dim=0).
+
+        compute_strain : bool
+            Option to calculate the spatial derivative of the displacement.
+
+        nu : optional
+            Poisson's ratio. Default is 0.25.
+
+
+        Returns
+        -------
+        list of tensors
+            If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
+            If `False`, return is a list of 3 displacements only.
+        """
 
         assert ("x" in coords) and ("y" in coords), f"'coords' require x and y."
         assert ("x_ref" in params) and ("y_ref" in params) and ("depth" in params) and \
@@ -32,6 +65,9 @@ class OkadaWrapper:
         xx =  (x - x_ref) * ss + (y - y_ref) * cs
         yy = -(x - x_ref) * cs + (y - y_ref) * ss 
 
+
+        alpha_1985 = 1 - 2.0 * nu         # MYU/(LAMBDA+MYU), equal to 1/2 if Poisson medium
+        alpha_1992 = 1 / (2.0 * (1 - nu)) # (LAMBDA+MYU)/(LAMBDA+2*MYU), equal to 2/3 if Poisson medium
 
         # ---- 2. model switch ----
         if ("length" in params) and ("width" in params):
@@ -73,9 +109,9 @@ class OkadaWrapper:
                 ux, uy, uz, uxx, uxy, uyx, uyy, uzx, uzy = out
 
                 # derived from surface boundary condition (Okada 1985; eq.42)
-                uxz = - uzx
-                uyz = - uzy
-                uzz = - (uxx + uyy) / 3.0 # assume Poisson medium
+                uxz = -uzx
+                uyz = -uzy
+                uzz = -(uxx + uyy) * nu / (1 - nu) 
 
             ux, uy, uz = rotate_vector(
                 ux, uy, uz, ss, cs
@@ -94,7 +130,42 @@ class OkadaWrapper:
         
 
 
-    def gradient(self, coords:dict, params:dict, compute_strain:bool, arg:str):
+    def gradient(self, coords:dict, params:dict, compute_strain:bool, arg:str, nu=0.25):
+        """
+        Calculate gradient with respect to specified `arg` (one of coordinates or parameters) at the observation point, given the source parameters.
+
+        Currently, only a single `arg` can be specified.
+        If you want to get gradient with respect to multiple args, you need to call this method multiple times.
+
+        
+        Parameters
+        ----------
+        See the `README` for specific usage.
+
+        coords : dict of tensors
+            `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
+            All corresponding values must be PyTorch tensors of the same shape.
+
+        params : dict of tensors
+            `"x_ref"`, `"y_ref"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys,
+            and `"length"` and `"width"` are optional (all other keys are ignored).
+            All corresponding values must be PyTorch **scaler tensors** (dim=0).
+
+        compute_strain : bool
+            Option to calculate the spatial derivative of the displacement.
+
+        arg : char
+            Name of the variable to be differentiated. This should be a key of `coords` or `params`.
+
+        nu : optional
+            Poisson's ratio. Default is 0.25.
+
+
+        Returns
+        -------
+        list of tensors
+            Same as the `compute` method, but each tensor is differentiated by `arg`.
+        """
 
         assert ("x" in coords) and ("y" in coords), f"'coords' require 'x' and 'y'."
         assert ("x_ref" in params) and ("y_ref" in params) and ("depth" in params) and \
@@ -116,7 +187,7 @@ class OkadaWrapper:
 
             def _fn(x, y, z):
                 coords2 = {"x": x, "y": y, "z": z}
-                return self.compute(coords2, params, compute_strain)
+                return self.compute(coords2, params, compute_strain, nu)
 
             _fn_grad = vmap(jacfwd(_fn, argnums=argnum))
             grads = _fn_grad(xx, yy, zz)
@@ -135,7 +206,7 @@ class OkadaWrapper:
 
             def _fn(x, y):
                 coords2 = {"x": x, "y": y}
-                return self.compute(coords2, params, compute_strain)
+                return self.compute(coords2, params, compute_strain, nu)
             
             _fn_grad = vmap(jacfwd(_fn, argnums=argnum))
             grads = _fn_grad(xx, yy)
@@ -148,7 +219,7 @@ class OkadaWrapper:
             def _fn(p):
                 params2 = params.copy()
                 params2[arg] = p
-                return self.compute(coords, params2, compute_strain)
+                return self.compute(coords, params2, compute_strain, nu)
 
             p = p.detach()
 
@@ -161,7 +232,41 @@ class OkadaWrapper:
 
 
 
-    def hessian(self, coords: dict, params: dict, compute_strain: bool, arg1: str, arg2: str):
+    def hessian(self, coords: dict, params: dict, compute_strain: bool, arg1: str, arg2: str, nu=0.25):
+        """
+        Calculate hessian (2nd order derivatives) with respect to specified `arg1` and `arg2` at the observation point, given the source parameters.
+
+        
+        Parameters
+        ----------
+        See the `README` for specific usage.
+        
+        coords : dict of tensors
+            `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
+            All corresponding values must be PyTorch tensors of the same shape.
+
+        params : dict of tensors
+            `"x_ref"`, `"y_ref"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys,
+            and `"length"` and `"width"` are optional (all other keys are ignored).
+            All corresponding values must be PyTorch **scaler tensors** (dim=0).
+
+        compute_strain : bool
+            Option to calculate the spatial derivative of the displacement.
+
+        arg1, arg2 : char
+            Names of the variable to be differentiated. These should be keys of `coords` or `params`.
+            Both `arg1` and `arg2` must be variables of the same kind; both must be `coords` or both must be `params`.
+
+        nu : optional
+            Poisson's ratio. Default is 0.25.
+
+
+        Returns
+        -------
+        list of tensors
+            Same as the `compute` method, but each tensor is differentiated by `arg1` and `arg2`.
+        """
+
 
         assert ("x" in coords) and ("y" in coords), "'coords' require x and y."
         assert ("x_ref" in params) and ("y_ref" in params) and ("depth" in params) and \
@@ -193,7 +298,7 @@ class OkadaWrapper:
 
             def _fn(x, y, z):
                 coords2 = {"x": x, "y": y, "z": z}
-                return self.compute(coords2, params, compute_strain)
+                return self.compute(coords2, params, compute_strain, nu)
             
             _fn_hessian = vmap(jacfwd(jacfwd(_fn, argnums=argnum2), argnums=argnum1))
             hessians = _fn_hessian(xx, yy, zz)
@@ -218,7 +323,7 @@ class OkadaWrapper:
 
             def _fn(x, y):
                 coords2 = {"x": x, "y": y}
-                return self.compute(coords2, params, compute_strain)
+                return self.compute(coords2, params, compute_strain, nu)
             
             _fn_hessian = vmap(jacfwd(jacfwd(_fn, argnums=argnum2), argnums=argnum1))
             hessians = _fn_hessian(xx, yy)
@@ -233,7 +338,7 @@ class OkadaWrapper:
                 def _fn(p):
                     params2 = params.copy()
                     params2[arg1] = p
-                    return self.compute(coords, params2, compute_strain)
+                    return self.compute(coords, params2, compute_strain, nu)
 
                 p = p.detach()
                 return jacfwd(jacfwd(_fn))(p)
@@ -247,7 +352,7 @@ class OkadaWrapper:
                     params2 = params.copy()
                     params2[arg1] = p1
                     params2[arg2] = p2
-                    return self.compute(coords, params2, compute_strain)
+                    return self.compute(coords, params2, compute_strain, nu)
 
                 p1 = p1.detach()
                 p2 = p2.detach()
