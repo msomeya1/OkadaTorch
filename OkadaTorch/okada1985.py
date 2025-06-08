@@ -6,22 +6,39 @@ PI2 = 2.0 * torch.pi
 
 def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain):
     """
-    SURFACE DISPLACEMENT,STRAIN,TILT DUE TO BURIED POINT SOURCE
-    IN A SEMIINFINITE MEDIUM     CODED BY  Y.OKADA ... JAN 1985
-    Converted to PyTorch by Masayoshi Someya (2025)
+    Surface displacement, strain, tilt due to buried point source in a semiinfinite medium.
 
-    INPUT
-        ALP   : MEDIUM CONSTANT  MYU/(LAMBDA+MYU)
-        X,Y   : COORDINATE OF STATION
-        D     : SOURCE DEPTH
-        SD,CD : SIN,COS OF DIP-ANGLE
-                (CD=0.D0, SD=+/-1.D0 SHOULD BE GIVEN FOR VERTICAL FAULT)
-        DISL1,DISL2,DISL3 : STRIKE-, DIP- AND TENSILE-DISLOCATION
-    
-    OUTPUT
-        U1, U2, U3      : DISPLACEMENT ( UNIT= UNIT OF DISL / AREA )
-        U11,U12,U21,U22 : STRAIN       ( UNIT= UNIT OF DISL /
-        U31,U32         : TILT                 UNIT OF X,Y,D /AREA )
+    Parameters
+    ----------
+    ALP
+        Medium constant. myu/(lambda+myu)
+    X, Y
+        Coordinate of station.
+    D
+        Source depth.
+    SD, CD
+        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3
+        Strike-, dip- and tensile-dislocation.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
+    If `False`, return is a list of 3 displacements only.
+
+    U1, U2, U3
+        Displacement. unit = (unit of dislocation) / area
+    U11, U12, U21, U22
+        Strain. unit = (unit of dislocation) / (unit of X,Y,D) / area
+    U31, U32
+        Tilt. unit = (unit of dislocation) / (unit of X,Y,D) / area
+
+    Notes
+    -----
+    Original FORTRAN code was written by Y.Okada in Jan. 1985.
+    PyTorch implementation by M.Someya in 2025.
     """
 
     # Initialization
@@ -140,27 +157,45 @@ def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
 def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain):
     """
-    SURFACE DISPLACEMENTS,STRAINS AND TILTS DUE TO RECTANGULAR
-    FAULT IN A HALF-SPACE       CODED BY  Y.OKADA ... JAN 1985
-    Converted to PyTorch by Masayoshi Someya (2025)
+    Surface displacements, strains and tilts due to rectangular fault in a half-space.
 
-    INPUT
-        ALP   : MEDIUM CONSTANT  MYU/(LAMBDA+MYU)
-        X,Y   : COORDINATE OF STATION
-        DEP   : SOURCE DEPTH
-        AL,AW : LENGTH AND WIDTH OF FAULT
-        SD,CD : SIN,COS OF DIP-ANGLE
-            (CD=0.D0, SD=+/-1.D0 SHOULD BE GIVEN FOR VERTICAL FAULT)
-        DISL1,DISL2,DISL3 : STRIKE-, DIP- AND TENSILE-DISLOCATION
-    
-    OUTPUT
-        U1, U2, U3      : DISPLACEMENT ( UNIT= UNIT OF DISL     )
-        U11,U12,U21,U22 : STRAIN       ( UNIT= UNIT OF DISL /
-        U31,U32         : TILT                 UNIT OF X,Y,,,AW )
+    Parameters
+    ----------
+    ALP
+        Medium constant. myu/(lambda+myu)
+    X, Y
+        Coordinate of station.
+    D
+        Source depth.
+    AL, AW
+        length and width of fault.
+    SD, CD
+        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3
+        Strike-, dip- and tensile-dislocation.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
 
-    SUBROUTINE USED... _SRECTG
+    Returns
+    -------
+    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
+    If `False`, return is a list of 3 displacements only.
+
+    U1, U2, U3
+        Displacement. unit = (unit of dislocation) 
+    U11, U12, U21, U22
+        Strain. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+    U31, U32
+        Tilt. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+
+    Notes
+    -----
+    Original FORTRAN code was written by Y.Okada in Jan. 1985.
+    PyTorch implementation by M.Someya in 2025.
+
+    Subfunction used ... _SRECTG
     """
-
+        
     # Initialization
     N_variable = 9 if compute_strain else 3
     U = [torch.zeros_like(X) for _ in range(N_variable)]
@@ -172,10 +207,10 @@ def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
 
     for K in [1, 2]:
-        ET = P if (K == 1) else P - AW
+        ET = (P if (K == 1) else P - AW)
         for J in [1, 2]:
-            XI = X if (J == 1) else X - AL
-            SIGN = 1.0 if (J + K != 3) else -1.0
+            XI = (X if (J == 1) else X - AL)
+            SIGN = (1.0 if (J + K != 3) else -1.0)
 
             DU = _SRECTG(
                 ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain

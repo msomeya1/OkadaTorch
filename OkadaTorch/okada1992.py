@@ -2,35 +2,51 @@ import torch
 from .utils import _UA0, _UB0, _UC0, _UA, _UB, _UC, COMMON0, COMMON1, COMMON2
 
 PI2 = 2.0 * torch.pi
-EPS = 1e-6
+EPS = 1.0e-6
 
 
 
 
 def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH
-    DUE TO BURIED POINT SOURCE IN A SEMIINFINITE MEDIUM
-        CODED BY  Y.OKADA ... SEP.1991
-        REVISED     NOV.1991, MAY.2002
-        Converted to PyTorch by Masayoshi Someya (2025)
+    Displacement and strain at depth due to buried point source in a semiinfinite medium.
 
-    INPUT
-        ALPHA : MEDIUM CONSTANT  (LAMBDA+MYU)/(LAMBDA+2*MYU)
-        X,Y,Z : COORDINATE OF OBSERVING POINT
-        DEPTH : SOURCE DEPTH
-        DIP   : DIP-ANGLE (DEGREE)
-        POT1-POT4 : STRIKE-, DIP-, TENSILE- AND INFLATE-POTENCY
-            POTENCY=(  MOMENT OF DOUBLE-COUPLE  )/MYU     FOR POT1,2
-            POTENCY=(INTENSITY OF ISOTROPIC PART)/LAMBDA  FOR POT3
-            POTENCY=(INTENSITY OF LINEAR DIPOLE )/MYU     FOR POT4
+    Parameters
+    ----------
+    ALPHA
+        Medium constant. (lambda+myu)/(lambda+2*myu)
+    X, Y, Z
+        Coordinate of observing point.
+    DEPTH
+        Source depth.
+    DIP
+        Dip-angle. (degree)
+    POT1, POT2, POT3, POT4
+        Strike-, dip-, tensile- and inflate-potency. \n
+        potency = (moment of double-couple)/myu for POT1,2 \n
+        potency = (intensity of isotropic part)/lambda for POT3 \n
+        potency = (intensity of linear dipole)/myu for POT4
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
 
-    OUTPUT
-        UX, UY, UZ  : DISPLACEMENT ( UNIT=(UNIT OF POTENCY) /
-                    :                     (UNIT OF X,Y,Z,DEPTH)**2  )
-        UXX,UYX,UZX : X-DERIVATIVE ( UNIT= UNIT OF POTENCY) /
-        UXY,UYY,UZY : Y-DERIVATIVE        (UNIT OF X,Y,Z,DEPTH)**3  )
-        UXZ,UYZ,UZZ : Z-DERIVATIVE
+    Returns
+    -------
+    If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
+    If `False`, return is a list of 3 displacements only.
+
+    UX, UY, UZ
+        Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
+    UXX, UYX, UZX
+        X-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+    UXY, UYY, UZY
+        Y-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+    UXZ, UYZ, UZZ
+        Z-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+
+    Notes
+    -----
+    Original FORTRAN code was written by Y.Okada in Sep.1991, revised in Nov.1991, May.2002.
+    PyTorch implementation by M.Someya, 2025.
     """
 
     # if (Z > 0.0).any():
@@ -60,15 +76,14 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
     #     raise ValueError("SINGULAR (R=0; IRET=1)")
     
     DUA = _UA0(X, Y, DD, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
-    if not compute_strain:
-        for I in range(N_variable):
-            U[I] = U[I] - DUA[I]
-    else:
+    if compute_strain:
         for I in range(9):
             U[I] = U[I] - DUA[I]
         for I in range(3):
             U[I+9] = U[I+9] + DUA[I+9]
-
+    else:
+        for I in range(3):
+            U[I] = U[I] - DUA[I]
 
 
     # IMAGE-SOURCE CONTRIBUTION
@@ -81,7 +96,7 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
 
     for I in range (N_variable):
         DU = DUA[I] + DUB[I] + Z * DUC[I]
-        if I >= 10:
+        if I >= 9:
             DU = DU + DUC[I-9]
         U[I] = U[I] + DU
 
@@ -93,30 +108,45 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
 
 def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH
-    DUE TO BURIED FINITE FAULT IN A SEMIINFINITE MEDIUM
-        CODED BY  Y.OKADA ... SEP.1991
-        REVISED ... NOV.1991, APR.1992, MAY.1993,JUL.1993, MAY.2002
-        Converted to PyTorch by Masayoshi Someya (2025)
+    Displacement and strain at depth due to buried finite fault in a semiinfinite medium.
 
-    INPUT
-        ALPHA : MEDIUM CONSTANT  (LAMBDA+MYU)/(LAMBDA+2*MYU)
-        X,Y,Z : COORDINATE OF OBSERVING POINT
-        DEPTH : DEPTH OF REFERENCE POINT
-        DIP   : DIP-ANGLE (DEGREE)
-        AL1,AL2   : FAULT LENGTH RANGE
-        AW1,AW2   : FAULT WIDTH RANGE
-        DISL1-DISL3 : STRIKE-, DIP-, TENSILE-DISLOCATIONS
+    Parameters
+    ----------
+    ALPHA
+        Medium constant. (lambda+myu)/(lambda+2*myu)
+    X, Y, Z
+        Coordinate of observing point.
+    DEPTH
+        Depth of reference point.
+    DIP
+        Dip-angle. (degree)
+    AL1, AL2
+        Fault length range.
+    AW1, AW2
+        Fault width range.
+    DISL1, DISL2, DISL3
+        Strike-, dip-, tensile-dislocations.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
 
-    OUTPUT
-        UX, UY, UZ  : DISPLACEMENT ( UNIT=(UNIT OF DISL)
-        UXX,UYX,UZX : X-DERIVATIVE ( UNIT=(UNIT OF DISL) /
-        UXY,UYY,UZY : Y-DERIVATIVE        (UNIT OF X,Y,Z,DEPTH,AL,AW) )
-        UXZ,UYZ,UZZ : Z-DERIVATIVE
-        IRET        : RETURN CODE
-                    :   =0....NORMAL
-                    :   =1....SINGULAR
-                    :   =2....POSITIVE Z WAS GIVEN
+    Returns
+    -------
+    If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
+    If `False`, return is a list of 3 displacements only.
+
+    UX, UY, UZ
+        Displacement. unit = (unit of dislocation)
+    UXX, UYX, UZX
+        X-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+    UXY, UYY, UZY
+        Y-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+    UXZ, UYZ, UZZ
+        Z-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+
+    Notes
+    -----
+    Original FORTRAN code was written by Y.Okada in Sep.1991, revised in Nov.1991, Apr.1992, May.1993, Jul.1993, May.2002.
+    PyTorch implementation by M.Someya, 2025.
     """
 
     # if (Z > 0.0).any():
@@ -228,24 +258,31 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
             C2.DCCON2(XI[J], ET[K], Q, SD, CD, KXI[K], KET[J])
             DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
-            for I in range(0, N_variable-3+1, 3):
-                DU[I]   = -DUA[I]
-                DU[I+1] = -DUA[I+1] * CD + DUA[I+2] * SD
-                DU[I+2] = -DUA[I+1] * SD - DUA[I+2] * CD
-                if I >= 9:
-                    DU[I]   = -DU[I]
-                    DU[I+1] = -DU[I+1]
-                    DU[I+2] = -DU[I+2]
+            if compute_strain:
+                for I in range(0, 10, 3):
+                    DU[I]   = -DUA[I]
+                    DU[I+1] = -DUA[I+1] * CD + DUA[I+2] * SD
+                    DU[I+2] = -DUA[I+1] * SD - DUA[I+2] * CD
+                    if I >= 9:
+                        DU[I]   = -DU[I]
+                        DU[I+1] = -DU[I+1]
+                        DU[I+2] = -DU[I+2]
+            else:
+                DU[0] = -DUA[0]
+                DU[1] = -DUA[1] * CD + DUA[2] * SD
+                DU[2] = -DUA[1] * SD - DUA[2] * CD
+
 
             for I in range(N_variable):
-                if (J + K != 1):
-                    U[I] = U[I] + DU[I]
-                else:
+                if (J + K == 1):
                     U[I] = U[I] - DU[I]
+                else:
+                    U[I] = U[I] + DU[I]
 
 
 
     # IMAGE-SOURCE CONTRIBUTION
+    D = DEPTH - Z
     P = Y * CD + D * SD
     Q = torch.where(
         torch.abs(Y * SD - D * CD) < EPS,
@@ -283,6 +320,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
     R12 = torch.sqrt(XI[0]**2 + ET[1]**2 + Q**2)
     R21 = torch.sqrt(XI[1]**2 + ET[0]**2 + Q**2)
     R22 = torch.sqrt(XI[1]**2 + ET[1]**2 + Q**2)
+    
     KXI[0] = torch.where(
         torch.logical_and(XI[0] < 0.0, R21 + XI[1] < EPS),
         1,
@@ -313,21 +351,26 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
             DUB = _UB(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
             DUC = _UC(XI[J], ET[K], Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
-            for I in range(0, N_variable-3+1, 3):
-                DU[I]   = DUA[I] + DUB[I] + Z * DUC[I]
-                DU[I+1] = (DUA[I+1] + DUB[I+1] + Z * DUC[I+1]) * CD - (DUA[I+2] + DUB[I+2] + Z * DUC[I+2]) * SD
-                DU[I+2] = (DUA[I+1] + DUB[I+1] - Z * DUC[I+1]) * SD + (DUA[I+2] + DUB[I+2] - Z * DUC[I+2]) * CD
-                if compute_strain:
+            if compute_strain:
+                for I in range(0, 10, 3):
+                    DU[I]   = DUA[I] + DUB[I] + Z * DUC[I]
+                    DU[I+1] = (DUA[I+1] + DUB[I+1] + Z * DUC[I+1]) * CD - (DUA[I+2] + DUB[I+2] + Z * DUC[I+2]) * SD
+                    DU[I+2] = (DUA[I+1] + DUB[I+1] - Z * DUC[I+1]) * SD + (DUA[I+2] + DUB[I+2] - Z * DUC[I+2]) * CD
                     if I >= 9:
-                        DU[9] = DU[9] + DUC[0]
+                        DU[ 9] = DU[ 9] + DUC[0]
                         DU[10] = DU[10] + DUC[1] * CD - DUC[2] * SD
                         DU[11] = DU[11] - DUC[1] * SD - DUC[2] * CD
+            else:
+                DU[0] =  DUA[0] + DUB[0] + Z * DUC[0]
+                DU[1] = (DUA[1] + DUB[1] + Z * DUC[1]) * CD - (DUA[2] + DUB[2] + Z * DUC[2]) * SD
+                DU[2] = (DUA[1] + DUB[1] - Z * DUC[1]) * SD + (DUA[2] + DUB[2] - Z * DUC[2]) * CD
+
 
             for I in range(N_variable):
-                if (J + K != 1):
-                    U[I] = U[I] + DU[I]
-                else:
+                if (J + K == 1):
                     U[I] = U[I] - DU[I]
+                else:
+                    U[I] = U[I] + DU[I]
                     
 
 

@@ -1,27 +1,43 @@
 import torch
 
 PI2 = 2.0 * torch.pi
-EPS = 1e-6
+EPS = 1.0e-6
 
 
 def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
     """
-    INDEFINITE INTEGRAL OF SURFACE DISPLACEMENTS, STRAINS AND TILTS
-    DUE TO FINITE FAULT IN A SEMIINFINITE MEDIUM
-    CODED BY  Y.OKADA ... JAN 1985
-    Converted to PyTorch by Masayoshi Someya (2025)
+    Indefinite integral of surface displacements, strains and tilts
+    due to finite fault in a semiinfinite medium.
 
-    INPUT
-        ALP     : MEDIUM CONSTANT  MYU/(LAMBDA+MYU)
-        XI,ET,Q : FAULT COORDINATE
-        SD,CD   : SIN,COS OF DIP-ANGLE
-                (CD=0.D0, SD=+/-1.D0 SHOULD BE GIVEN FOR VERTICAL FAULT)
-        DISL1,DISL2,DISL3 : STRIKE-, DIP- AND TENSILE-DISLOCATION
+    Parameters
+    ----------
+    ALP
+        Medium constant. myu/(lambda+myu)
+    XI, ET, Q
+        Fault coordinate.
+    SD, CD
+        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3
+        Strike-, dip- and tensile-dislocation.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
 
-    OUTPUT
-        U1, U2, U3      : DISPLACEMENT ( UNIT= UNIT OF DISL    )
-        U11,U12,U21,U22 : STRAIN       ( UNIT= UNIT OF DISL /
-        U31,U32         : TILT                 UNIT OF XI,ET,Q )
+    Returns
+    -------
+    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
+    If `False`, return is a list of 3 displacements only.
+
+    U1, U2, U3
+        Displacement. unit = (unit of dislocation) 
+    U11, U12, U21, U22
+        Strain. unit = (unit of dislocation) / (unit of XI,ET,Q)
+    U31, U32
+        Tilt. unit = (unit of dislocation) / (unit of XI,ET,Q)
+
+    Notes
+    -----
+    Original FORTRAN code was written by Y.Okada in Jan. 1985.
+    PyTorch implementation by M.Someya in 2025.
     """
 
     # Initialization
@@ -64,10 +80,11 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
     # Modification to prevent zero-division. 
     # RRX = 1.0 / ( R * (R + XI))
     RRX = torch.where(
-        torch.abs(R * (R + XI)) < 1.0e-6,
+        torch.abs(R * (R + XI)) < EPS,
         1.0e6, 
         1.0 / (R * (R + XI))
     )
+
     RRE = RE / R
 
     if CD != 0.0:
@@ -109,8 +126,8 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
             B2 = ALP / CD * XI * Y * RRD / RD      - TD * C1
         else:
             # VERTICAL FAULT
-            B1 = ALP / 2.0 * Q / RD2 * (2.0 * XI2 * RRD - 1.0)
-            B2 = ALP / 2.0 * XI * SD / RD2 * (2.0 * Q2 * RRD - 1.0)
+            B1 = ALP / 2.0 * Q       / RD2 * (2.0 * XI2 * RRD - 1.0)
+            B2 = ALP / 2.0 * XI * SD / RD2 * (2.0 * Q2  * RRD - 1.0)
             C1 = ALP * XI * Q * RRD / RD
             C3 = ALP * SD / RD * (XI2 * RRD - 1.0)
 
@@ -150,7 +167,7 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
             U11 = U11 + UN * (XI * Q / R3                + B3 * SDCD)
             U12 = U12 + UN * (Y * Q / R3  - SD / R       + B1 * SDCD)
             U21 = U21 + UN * (Y * Q / R3  + Q * CD * RRE + B1 * SDCD)
-            U22 = U22 + UN * (Y * Y * Q * AXI - (2.0 * Y * RRX + XI * CD * RRE) * SD + B2 * SDCD)
+            U22 = U22 + UN * (Y**2  * Q * AXI - (2.0 * Y * RRX + XI * CD * RRE) * SD + B2 * SDCD)
             U31 = U31 + UN * (D * Q / R3  + Q * SD * RRE + C3 * SDCD)
             U32 = U32 + UN * (Y * D * Q * AXI - (2.0 * D * RRX + XI * SD * RRE) * SD + C1 * SDCD)
 
@@ -184,14 +201,24 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
 def _UA0(X, Y, D, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-A)
-    DUE TO BURIED POINT SOURCE IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-A) due to buried point source in a semiinfinite medium.
 
-    INPUT
-    X,Y,D : STATION COORDINATES IN FAULT SYSTEM
-    POT1-POT4 : STRIKE-, DIP-, TENSILE- AND INFLATE-POTENCY
-    OUTPUT
-    U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    X, Y, D
+        Station coordinates in fault system.
+    POT1, POT2, POT3, POT4
+        Strike-, dip-, tensile- and inflate-potency.
+    C0, C1
+        Instance of classes `COMMON0` and `COMMON1`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -303,14 +330,24 @@ def _UA0(X, Y, D, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-B)
-    DUE TO BURIED POINT SOURCE IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-B) due to buried point source in a semiinfinite medium.
 
-    INPUT
-    X,Y,D,Z : STATION COORDINATES IN FAULT SYSTEM
-    POT1-POT4 : STRIKE-, DIP-, TENSILE- AND INFLATE-POTENCY
-    OUTPUT
-    U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    X, Y, D, Z
+        Station coordinates in fault system.
+    POT1, POT2, POT3, POT4
+        Strike-, dip-, tensile- and inflate-potency.
+    C0, C1
+        Instance of classes `COMMON0` and `COMMON1`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -342,10 +379,10 @@ def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
         D54 = D12 * (5.0 * R2 + 4.0 * R * D + D2) / R3 * D12
         FJ1 = -3.0 * XY * (D33 - X2 * D54)
         FJ2 = 1.0 / R3 - 3.0 * D12 + 3.0 * X2 * Y2 * D54
-        FK2 = -X * (D32 - Y2 * D53)
         FJ3 = A3 / R3 - FJ2
         FJ4 = -3.0 * XY / R5 - FJ1
         FK1 = -Y * (D32 - X2 * D53)
+        FK2 = -X * (D32 - Y2 * D53)
         FK3 = -3.0 * X * D / R5 - FK2
 
 
@@ -440,14 +477,24 @@ def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-C)
-    DUE TO BURIED POINT SOURCE IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-C) due to buried point source in a semiinfinite medium.
 
-    INPUT
-    X,Y,D,Z : STATION COORDINATES IN FAULT SYSTEM
-    POT1-POT4 : STRIKE-, DIP-, TENSILE- AND INFLATE-POTENCY
-    OUTPUT
-    U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    X, Y, D, Z
+        Station coordinates in fault system.
+    POT1, POT2, POT3, POT4
+        Strike-, dip-, tensile- and inflate-potency.
+    C0, C1
+        Instance of classes `COMMON0` and `COMMON1`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -458,15 +505,14 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
     ALP4, ALP5, SD, CD, SDSD, SDCD, S2D, C2D = C0.ALP4, C0.ALP5, C0.SD, C0.CD, C0.SDSD, C0.SDCD, C0.S2D, C0.C2D
     P, Q, S, T = C1.P, C1.Q, C1.S, C1.T
-    R2, R3, R5, QR, QRX, A3, A5, C3 = C1.R2, C1.R3, C1.R5, C1.QR, C1.QRX, C1.A3, C1.A5, C1.C3 
+    R2, R3, R5, R7, QR, QRX, A3, A5, C3 = C1.R2, C1.R3, C1.R5, C1.R7, C1.QR, C1.QRX, C1.A3, C1.A5, C1.C3 
 
     C = D + Z
     QR5 = 5.0 * Q / R2
 
 
     if compute_strain:
-        XY, X2, Y2, D2, R = C1.XY, C1.X2, C1.Y2, C1.D2, C1.R
-        R7 = R**7
+        XY, X2, Y2, D2 = C1.XY, C1.X2, C1.Y2, C1.D2
         Q2 = Q**2
         A7 = 1.0 - 7.0 * X2 / R2
         B5 = 1.0 - 5.0 * Y2 / R2
@@ -491,9 +537,9 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
             DU[ 6] = DU[4]
             DU[ 7] = 3.0 * X / R5 * ( ALP4 * B5 * CD - ALP5 * 5.0 * C / R2 * (2.0 * Y * SD + Q * B7))
             DU[ 8] = 3.0 * X / R5 * (-ALP4 * B5 * SD + ALP5 * 5.0 * C / R2 * (D * B7 * SD - Y * C7 * CD))
-            DU[ 9] = 3.0 / R5 * (-ALP4 * D * A5 * CD + ALP5 * C * (A5 * CD + D * QR5 * A7))
-            DU[10] = 15.0 * X / R7 * ( ALP4 * Y * D * CD + ALP5 * C * (D * B7 * SD - Y * C7 * CD))
-            DU[11] = 15.0 * X / R7 * (-ALP4 * Y * D * SD + ALP5 * C * (2.0* D * CD - Q * C7))
+            DU[ 9] = 3.0 / R5      * (-ALP4 * D * A5 * CD + ALP5 * C * (A5 * CD + D * QR5 * A7))
+            DU[10] = 15.0 * X / R7 * ( ALP4 * Y * D * CD  + ALP5 * C * (D * B7 * SD - Y * C7 * CD))
+            DU[11] = 15.0 * X / R7 * (-ALP4 * Y * D * SD  + ALP5 * C * (2.0* D * CD - Q * C7))
 
         for I in range(N_variable):
             U[I] = U[I] + POT1 / PI2 * DU[I]
@@ -514,7 +560,7 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
             DU[ 8] = 3.0 / R5 *     ( ALP4 * Y * A5 * SDCD                 - ALP5 * C * ((3.0 + A5) * C2D + Y * P * DR5 * QR7))
             DU[ 9] = 3.0 * X / R5 * (-ALP4 * (S2D - T * DR5)               - ALP5 * 5.0 * C / R2 * (T + D * P * QR7))
             DU[10] = 3.0 / R5 *     (-ALP4 * (D * B5 * C2D + Y * C5 * S2D) - ALP5 * C * ((3.0 + A5) * C2D + Y * P * DR5 * QR7))
-            DU[11] = 3.0 / R5 *     (-ALP4 * D * A5 * SDCD                 - ALP5 * C * (S2D- 10.0 * D * T / R2 + P * QR5 * C7))
+            DU[11] = 3.0 / R5 *     (-ALP4 * D * A5 * SDCD                 - ALP5 * C * (S2D - 10.0 * D * T / R2 + P * QR5 * C7))
 
         for I in range(N_variable):
             U[I] = U[I] + POT2 / PI2 * DU[I]
@@ -528,14 +574,14 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
         if compute_strain:
             DU[ 3] = -ALP4 * 3.0 * S / R5 * A5 + ALP5 * (C * QR * QR5 * A7 - 3.0 * Z / R5 * A5)
-            DU[ 4] = 3.0 * X / R5 * (-ALP4 * (S2D - 5.0 * Y * S / R2)     - ALP5 * 5.0 / R2 * (C * (T - Y+ Y * Q * QR7) - Y * Z))
+            DU[ 4] = 3.0 * X / R5 * (-ALP4 * (S2D - 5.0 * Y * S / R2)     - ALP5 * 5.0 / R2 * (C * (T - Y + Y * Q * QR7) - Y * Z))
             DU[ 5] = 3.0 * X / R5 * ( ALP4 * (1.0 - (2.0 + A5) * SDSD)    + ALP5 * 5.0 / R2 * (C * (S - D + D * Q * QR7) - D * Z))
             DU[ 6] = DU[4]
             DU[ 7] = 3.0 / R5 *     (-ALP4 * (2.0 * Y * S2D + S * B5)     - ALP5 * (C * (2.0 * SDSD + 10.0 * Y * (T - Y) / R2 - Q * QR5 * B7) + Z * B5))
             DU[ 8] = 3.0 / R5 *     ( ALP4 * Y * (1.0 - A5 * SDSD)        + ALP5 * (C * (3.0 + A5) * S2D - Y * DR5 * (C * D7 + Z)))
             DU[ 9] = 3.0 * X / R5 * (-ALP4 * (C2D+ S * DR5)               + ALP5 * (5.0 * C / R2 * (S - D + D * Q *QR7) - 1.0 - Z * DR5))
             DU[10] = 3.0 / R5 *     ( ALP4 * (D * B5 * S2D - Y* C5 * C2D) + ALP5 * (C * ((3.0 + A5) * S2D - Y * DR5 * D7) - Y * (1.0 + Z * DR5)))
-            DU[11] = 3.0 / R5 *     (-ALP4 * D * (1.0 - A5 * SDSD)        - ALP5 * (C * (C2D+ 10.0 * D * (S - D) / R2 - Q * QR5 * C7) + Z * (1.0 + C5)))
+            DU[11] = 3.0 / R5 *     (-ALP4 * D * (1.0 - A5 * SDSD)        - ALP5 * (C * (C2D + 10.0 * D * (S - D) / R2 - Q * QR5 * C7) + Z * (1.0 + C5)))
 
         for I in range(N_variable):
             U[I] = U[I] + POT3 / PI2 * DU[I]
@@ -571,14 +617,24 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-A)
-    DUE TO BURIED FINITE FAULT IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-A) due to buried finite fault in a semiinfinite medium.
 
-    INPUT
-        XI,ET,Q : STATION COORDINATES IN FAULT SYSTEM
-        DISL1-DISL3 : STRIKE-, DIP-, TENSILE-DISLOCATIONS
-    OUTPUT
-        U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    XI, ET, Q
+        Station coordinates in fault system.
+    DISL1, DISL2, DISL3
+        Strike-, dip-, tensile-dislocations.
+    C0, C2
+        Instance of classes `COMMON0` and `COMMON2`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -650,7 +706,7 @@ def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
         if compute_strain:
             DU[ 3] = -ALP1 * XY                  + ALP2 * XI * Q2 * Y32
             DU[ 4] = -ALP1 / R                   + ALP2 * Q2 / R3
-            DU[ 5] = -ALP1 * QY                  - ALP2 * Q * Q2 *Y32
+            DU[ 5] = -ALP1 * QY                  - ALP2 * Q * Q2 * Y32
             DU[ 6] = -ALP1 * (CD / R + QY * SD)  - ALP2 * Q * FY
             DU[ 7] = -ALP1 * Y * X11             - ALP2 * Q * GY
             DU[ 8] =  ALP1 * (D * X11 + XY * SD) + ALP2 * Q * HY
@@ -668,14 +724,24 @@ def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
 def _UB(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-B)
-    DUE TO BURIED FINITE FAULT IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-B) due to buried finite fault in a semiinfinite medium.
 
-    INPUT
-        XI,ET,Q : STATION COORDINATES IN FAULT SYSTEM
-        DISL1-DISL3 : STRIKE-, DIP-, TENSILE-DISLOCATIONS
-    OUTPUT
-        U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    XI, ET, Q
+        Station coordinates in fault system.
+    DISL1, DISL2, DISL3
+        Strike-, dip-, tensile-dislocations.
+    C0, C2
+        Instance of classes `COMMON0` and `COMMON2`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -806,14 +872,24 @@ def _UB(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
 def _UC(XI, ET, Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    DISPLACEMENT AND STRAIN AT DEPTH (PART-C)
-    DUE TO BURIED FINITE FAULT IN A SEMIINFINITE MEDIUM
+    Displacement and strain at depth (Part-C) due to buried finite fault in a semiinfinite medium.
 
-    INPUT
-        XI,ET,Q,Z   : STATION COORDINATES IN FAULT SYSTEM
-        DISL1-DISL3 : STRIKE-, DIP-, TENSILE-DISLOCATIONS
-    OUTPUT
-        U(12) : DISPLACEMENT AND THEIR DERIVATIVES
+    Parameters
+    ----------
+    XI, ET, Q, Z
+        Station coordinates in fault system.
+    DISL1, DISL2, DISL3
+        Strike-, dip-, tensile-dislocations.
+    C0, C2
+        Instance of classes `COMMON0` and `COMMON2`.
+    compute_strain : bool
+        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+
+    Returns
+    -------
+    U
+        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
+        If `False`, this is a list of 3 displacements only.
     """
 
     # Initialization
@@ -879,7 +955,7 @@ def _UC(XI, ET, Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain):
         DU[ 2] = -D * X11 - XY * SD       - ALP5 * C * (X11 - Q2 * X32)
 
         if compute_strain:
-            DU[ 3] = -ALP4 * XI / R3 * CD              + ALP5 * C * XI * QR + XI *Q * Y32 * SD
+            DU[ 3] = -ALP4 * XI / R3 * CD              + ALP5 * C * XI * QR + XI * Q * Y32 * SD
             DU[ 4] = -ALP4 * Y / R3                    + ALP5 * C * ET * QR
             DU[ 5] =  D / R3 - Y0 * SD                 + ALP5 * C / R3 * (1.0 - 3.0 * Q2 / R2)
             DU[ 6] = -ALP4 * ET / R3 + Y0 * SDSD       - ALP5 * (CDR * SD - C * Y * QR)
@@ -921,6 +997,11 @@ def _UC(XI, ET, Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
 
 class COMMON0:
+    """
+    Class to hold medium constants and fault-dip constants.
+    In the original FORTRAN code, this was written using the COMMON statement.
+    """
+
     def __init__(self):
         self.ALP1 = None
         self.ALP2 = None
@@ -938,13 +1019,18 @@ class COMMON0:
 
     def DCCON0(self, ALPHA, DIP):
         """
-        CALCULATE MEDIUM CONSTANTS AND FAULT-DIP CONSTANTS
+        Calculate medium constants and fault-dip constants.
 
-        INPUT
-        ALPHA : MEDIUM CONSTANT  (LAMBDA+MYU)/(LAMBDA+2*MYU)
-        DIP   : DIP-ANGLE (DEGREE)
-        ### CAUTION ### 
-        IF COS(DIP) IS SUFFICIENTLY SMALL, IT IS SET TO ZERO
+        Parameters
+        ----------
+        ALPHA
+            Medium constant. (lambda+myu)/(lambda+2*myu)
+        DIP
+            Dip-angle. (degree)
+
+        Caution
+        -------
+        If cos(dip) is sufficiently small, it is set to zero.
         """
 
         self.ALP1 = (1.0 - ALPHA) / 2.0
@@ -957,8 +1043,16 @@ class COMMON0:
         CD = torch.cos(torch.deg2rad(DIP))
 
         mask = (torch.abs(CD) < EPS)
-        self.SD = torch.where(mask, torch.sign(SD), SD)
-        self.CD = torch.where(mask, torch.tensor(0.0), CD)
+        self.SD = torch.where(
+            mask, 
+            torch.sign(SD), 
+            SD
+        )
+        self.CD = torch.where(
+            mask, 
+            0.0, 
+            CD
+        )
 
         self.SDSD = self.SD**2
         self.CDCD = self.CD**2
@@ -969,6 +1063,11 @@ class COMMON0:
 
 
 class COMMON1:
+    """
+    Class to hold staiton geometry constants for point source.
+    In the original FORTRAN code, this was written using the COMMON statement.
+    """
+
     def __init__(self):
         self.P = None
         self.Q = None
@@ -982,6 +1081,7 @@ class COMMON1:
         self.R2 = None
         self.R3 = None
         self.R5 = None
+        self.R7 = None
         self.QR = None
         self.QRX = None
         self.A3 = None
@@ -998,12 +1098,18 @@ class COMMON1:
     
     def DCCON1(self, X, Y, D, C0):
         """
-        CALCULATE STATION GEOMETRY CONSTANTS FOR POINT SOURCE
-        
-        INPUT
-        X,Y,D : STATION COORDINATES IN FAULT SYSTEM
-        ### CAUTION ### 
-        IF X,Y,D ARE SUFFICIENTLY SMALL, THEY ARE SET TO ZERO
+        Calculate staiton geometry constants for point source.
+
+        Parameters
+        ----------
+        X, Y, D
+            Station coordinates in fault system
+        C0
+            Instance of classes `COMMON0`.
+
+        Caution
+        -------
+        If X,Y,D are sufficiently small, they are set to zero.
         """
 
         SD, CD = C0.SD, C0.CD 
@@ -1040,6 +1146,7 @@ class COMMON1:
         
         self.R3 = self.R**3
         self.R5 = self.R**5
+        self.R7 = self.R**7
 
         self.A3 = 1.0 - 3.0 * self.X2 / self.R2
         self.A5 = 1.0 - 5.0 * self.X2 / self.R2
@@ -1060,6 +1167,11 @@ class COMMON1:
 
 
 class COMMON2:
+    """
+    Class to hold staiton geometry constants for finite source.
+    In the original FORTRAN code, this was written using the COMMON statement.
+    """
+
     def __init__(self):
         self.XI2 = None
         self.ET2 = None
@@ -1089,15 +1201,20 @@ class COMMON2:
 
     def DCCON2(self, XI, ET, Q, SD, CD, KXI, KET):
         """
-        CALCULATE STATION GEOMETRY CONSTANTS FOR FINITE SOURCE
+        Calculate staiton geometry constants for finite source.
 
-        INPUT
-            XI,ET,Q : STATION COORDINATES IN FAULT SYSTEM
-            SD,CD   : SIN, COS OF DIP-ANGLE
-            KXI,KET : KXI=1, KET=1 MEANS R+XI<EPS, R+ET<EPS, RESPECTIVELY
+        Parameters
+        ----------
+        XI, ET, Q
+            Station coordinates in fault system
+        SD, CD
+            sin, cos of dip-angle
+        KXI, KET
+            KXI=1, KET=1 means R+XI<EPS, R+ET<EPS, respectively.
 
-        ### CAUTION ### 
-        IF XI,ET,Q ARE SUFFICIENTLY SMALL, THEY ARE SET TO ZER0
+        Caution
+        -------
+        If XI,ET,Q are sufficiently small, they are set to zero.
         """
 
 
@@ -1132,9 +1249,9 @@ class COMMON2:
         self.D = ET * SD - Q * CD
 
         self.TT = torch.where(
-            Q != 0.0, 
+            Q == 0.0, 
+            0.0,
             torch.atan(XI * ET / (Q * self.R)), 
-            0.0
         )
 
 
