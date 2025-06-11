@@ -23,11 +23,9 @@ class OkadaWrapper:
 
         Parameters
         ----------
-        See the `README` for specific usage.
-
         coords : dict of tensors
             `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
-            All corresponding values must be PyTorch tensors of the same shape.
+            All corresponding values must be PyTorch tensors of the **same shape** (`dim` is arbitrary).
 
         params : dict of tensors
             `"x_ref"`, `"y_ref"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys,
@@ -44,8 +42,9 @@ class OkadaWrapper:
         Returns
         -------
         list of tensors
-            If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
-            If `False`, return is a list of 3 displacements only.
+            If `compute_strain` is `True`, return is a list of 12 PyTorch tensors (3 displacements and 9 spatial derivatives).
+            If `False`, return is a list of 3 PyTorch tensors (displacements only). \n
+            The shape of each tensor is same as that of `coords["x"]` etc.
         """
 
         assert ("x" in coords) and ("y" in coords), f"'coords' require x and y."
@@ -140,8 +139,6 @@ class OkadaWrapper:
         
         Parameters
         ----------
-        See the `README` for specific usage.
-
         coords : dict of tensors
             `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
             All corresponding values must be PyTorch tensors of the same shape.
@@ -238,9 +235,7 @@ class OkadaWrapper:
 
         
         Parameters
-        ----------
-        See the `README` for specific usage.
-        
+        ----------        
         coords : dict of tensors
             `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
             All corresponding values must be PyTorch tensors of the same shape.
