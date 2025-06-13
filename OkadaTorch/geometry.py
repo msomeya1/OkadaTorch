@@ -2,32 +2,32 @@ import torch
 
 EPS = 1.0e-6
 
-def setup(strike, dip, rake, slip):
+def setup(strike, dip, rake, slip, is_degree):
     """
-    Calculate sin and cos of angle variables.
+    Calculate sine and cosine of angle variables.
     """
 
-    ss = torch.sin(torch.deg2rad(strike))
-    cs = torch.cos(torch.deg2rad(strike))
-    
-    sd = torch.sin(torch.deg2rad(dip))
-    cd = torch.cos(torch.deg2rad(dip))
+    if is_degree:
+        ss = torch.sin(torch.deg2rad(strike))
+        cs = torch.cos(torch.deg2rad(strike))
+        sd = torch.sin(torch.deg2rad(dip))
+        cd = torch.cos(torch.deg2rad(dip))
+        u_strike  = slip * torch.cos(torch.deg2rad(rake))
+        u_dip     = slip * torch.sin(torch.deg2rad(rake))
+    else:
+        ss = torch.sin(strike)
+        cs = torch.cos(strike)
+        sd = torch.sin(dip)
+        cd = torch.cos(dip)
+        u_strike  = slip * torch.cos(rake)
+        u_dip     = slip * torch.sin(rake)
 
-    # if dip \approx ±90 degree then set sin(dip)=sign(sd) and cos(dip)=0.
-    mask = (torch.abs(cd) < EPS)
-    sd = torch.where(
-        mask, 
-        torch.sign(sd), 
-        sd
-    )
-    cd = torch.where(
-        mask, 
-        0.0, 
-        cd
-    )
 
-    u_strike  = slip * torch.cos(torch.deg2rad(rake))
-    u_dip     = slip * torch.sin(torch.deg2rad(rake))
+    # if dip≈±90° then set sd=sign(sd) and cd=0.
+    if torch.abs(cd) < EPS:
+        sd = torch.sign(sd)
+        cd = 0.0
+
 
     return [ss, cs, sd, cd, u_strike, u_dip]
 
@@ -44,7 +44,7 @@ def rotate_vector(ux, uy, uz, s, c):
     ux, uy, uz
         Components of displacement vector.
     s, c
-        sin and cos of strike-angle.
+        Sine and cosine of strike-angle.
 
     Returns
     -------
@@ -60,7 +60,7 @@ def rotate_vector(ux, uy, uz, s, c):
 
 
 
-def rotate_tensor(uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, s, c):
+def rotate_tensor(uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz, s, c):
     """
     Rotate displacement gradient tensor
     from old coordinate (x-axis is parallel to strike)
@@ -68,14 +68,14 @@ def rotate_tensor(uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, s, c):
 
     Parameters
     ----------
-    uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
+    uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz
         Components of displacement gradient tensor.
     s, c
-        sin and cos of strike-angle.
+        Sine and cosine of strike-angle.
     
     Returns
     -------
-    Uxx, Uxy, Uxz, Uyx, Uyy, Uyz, Uzx, Uzy, Uzz
+    Uxx, Uyx, Uzx, Uxy, Uyy, Uzy, Uxz, Uyz, Uzz
         Components of rotated displacement gradient tensor.
     """
 
@@ -89,4 +89,4 @@ def rotate_tensor(uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, s, c):
     Uzy = c * uzx + s * uzy 
     Uzz = uzz
     
-    return [Uxx, Uxy, Uxz, Uyx, Uyy, Uyz, Uzx, Uzy, Uzz]
+    return [Uxx, Uyx, Uzx, Uxy, Uyy, Uzy, Uxz, Uyz, Uzz]

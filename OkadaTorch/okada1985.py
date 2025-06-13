@@ -4,35 +4,41 @@ from .utils import _SRECTG
 PI2 = 2.0 * torch.pi
 
 
-def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain):
+def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True):
     """
-    Surface displacement, strain, tilt due to buried point source in a semiinfinite medium.
+    Surface displacement, strain, tilt due to buried point source 
+    in a semiinfinite medium.
 
     Parameters
     ----------
-    ALP
+    ALP : float or torch.Tensor
         Medium constant. myu/(lambda+myu)
-    X, Y
+    X, Y : torch.Tensor
         Coordinate of station.
-    D
+    D : float or torch.Tensor
         Source depth.
-    SD, CD
-        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
-    DISL1, DISL2, DISL3
+    SD, CD : float or torch.Tensor
+        Sine, cosine of dip-angle. 
+        (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip- and tensile-dislocation.
-    compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+    compute_strain : bool, dafault True
+        Option to calculate the spatial derivative of the displacement. 
+        New in the PyTorch implementation.
 
     Returns
     -------
-    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
-    If `False`, return is a list of 3 displacements only.
+    If `compute_strain` is `True`, 
+    return is a list of 3 displacements and 6 spatial derivatives:
+    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+    If `False`, return is a list of 3 displacements only:
+    [U1, U2, U3]
 
-    U1, U2, U3
+    U1, U2, U3 : torch.Tensor
         Displacement. unit = (unit of dislocation) / area
-    U11, U12, U21, U22
+    U11, U12, U21, U22 : torch.Tensor
         Strain. unit = (unit of dislocation) / (unit of X,Y,D) / area
-    U31, U32
+    U31, U32 : torch.Tensor
         Tilt. unit = (unit of dislocation) / (unit of X,Y,D) / area
 
     Notes
@@ -155,37 +161,42 @@ def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
 
 
-def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain):
+def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain=True):
     """
     Surface displacements, strains and tilts due to rectangular fault in a half-space.
 
     Parameters
     ----------
-    ALP
+    ALP : float or torch.Tensor
         Medium constant. myu/(lambda+myu)
-    X, Y
+    X, Y : torch.Tensor
         Coordinate of station.
-    D
+    D : float or torch.Tensor
         Source depth.
-    AL, AW
-        length and width of fault.
-    SD, CD
-        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
-    DISL1, DISL2, DISL3
+    AL, AW : float or torch.Tensor
+        Length and width of fault.
+    SD, CD : float or torch.Tensor
+        Sin, Cosine of dip-angle. 
+        (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip- and tensile-dislocation.
-    compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+    compute_strain : bool, dafault True
+        Option to calculate the spatial derivative of the displacement. 
+        New in the PyTorch implementation.
 
     Returns
     -------
-    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
-    If `False`, return is a list of 3 displacements only.
+    If `compute_strain` is `True`, 
+    return is a list of 3 displacements and 6 spatial derivatives:
+    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+    If `False`, return is a list of 3 displacements only:
+    [U1, U2, U3]
 
-    U1, U2, U3
+    U1, U2, U3 : torch.Tensor
         Displacement. unit = (unit of dislocation) 
-    U11, U12, U21, U22
+    U11, U12, U21, U22 : torch.Tensor
         Strain. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
-    U31, U32
+    U31, U32 : torch.Tensor
         Tilt. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
 
     Notes

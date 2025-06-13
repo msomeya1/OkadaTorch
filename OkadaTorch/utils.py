@@ -11,27 +11,32 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
     Parameters
     ----------
-    ALP
+    ALP : float or torch.Tensor
         Medium constant. myu/(lambda+myu)
-    XI, ET, Q
+    XI, ET, Q : torch.Tensor
         Fault coordinate.
-    SD, CD
-        sin, cos of dip-angle. (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
-    DISL1, DISL2, DISL3
+    SD, CD : float or torch.Tensor
+        Sin, Cosine of dip-angle. 
+        (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip- and tensile-dislocation.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
-    If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives.
-    If `False`, return is a list of 3 displacements only.
+    If `compute_strain` is `True`, 
+    return is a list of 3 displacements and 6 spatial derivatives:
+    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+    If `False`, return is a list of 3 displacements only:
+    [U1, U2, U3]
 
-    U1, U2, U3
+    U1, U2, U3 : torch.Tensor
         Displacement. unit = (unit of dislocation) 
-    U11, U12, U21, U22
+    U11, U12, U21, U22 : torch.Tensor
         Strain. unit = (unit of dislocation) / (unit of XI,ET,Q)
-    U31, U32
+    U31, U32 : torch.Tensor
         Tilt. unit = (unit of dislocation) / (unit of XI,ET,Q)
 
     Notes
@@ -201,24 +206,29 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
 def _UA0(X, Y, D, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    Displacement and strain at depth (Part-A) due to buried point source in a semiinfinite medium.
+    Displacement and strain at depth (Part-A) 
+    due to buried point source in a semiinfinite medium.
 
     Parameters
     ----------
-    X, Y, D
+    X, Y, D : torch.Tensor
         Station coordinates in fault system.
-    POT1, POT2, POT3, POT4
+    POT1, POT2, POT3, POT4 : float or torch.Tensor
         Strike-, dip-, tensile- and inflate-potency.
     C0, C1
         Instance of classes `COMMON0` and `COMMON1`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -330,24 +340,29 @@ def _UA0(X, Y, D, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    Displacement and strain at depth (Part-B) due to buried point source in a semiinfinite medium.
+    Displacement and strain at depth (Part-B) 
+    due to buried point source in a semiinfinite medium.
 
     Parameters
     ----------
-    X, Y, D, Z
+    X, Y, D, Z : torch.Tensor
         Station coordinates in fault system.
-    POT1, POT2, POT3, POT4
+    POT1, POT2, POT3, POT4 : float or torch.Tensor
         Strike-, dip-, tensile- and inflate-potency.
     C0, C1
         Instance of classes `COMMON0` and `COMMON1`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -477,24 +492,29 @@ def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
     """
-    Displacement and strain at depth (Part-C) due to buried point source in a semiinfinite medium.
+    Displacement and strain at depth (Part-C) 
+    due to buried point source in a semiinfinite medium.
 
     Parameters
     ----------
-    X, Y, D, Z
+    X, Y, D, Z : torch.Tensor
         Station coordinates in fault system.
-    POT1, POT2, POT3, POT4
+    POT1, POT2, POT3, POT4 : float or torch.Tensor
         Strike-, dip-, tensile- and inflate-potency.
     C0, C1
         Instance of classes `COMMON0` and `COMMON1`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -617,24 +637,29 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
 def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    Displacement and strain at depth (Part-A) due to buried finite fault in a semiinfinite medium.
+    Displacement and strain at depth (Part-A) 
+    due to buried finite fault in a semiinfinite medium.
 
     Parameters
     ----------
-    XI, ET, Q
+    XI, ET, Q : torch.Tensor
         Station coordinates in fault system.
-    DISL1, DISL2, DISL3
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip-, tensile-dislocations.
     C0, C2
         Instance of classes `COMMON0` and `COMMON2`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -724,24 +749,29 @@ def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
 def _UB(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    Displacement and strain at depth (Part-B) due to buried finite fault in a semiinfinite medium.
+    Displacement and strain at depth (Part-B) 
+    due to buried finite fault in a semiinfinite medium.
 
     Parameters
     ----------
-    XI, ET, Q
+    XI, ET, Q : torch.Tensor
         Station coordinates in fault system.
-    DISL1, DISL2, DISL3
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip-, tensile-dislocations.
     C0, C2
         Instance of classes `COMMON0` and `COMMON2`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -872,24 +902,29 @@ def _UB(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
 def _UC(XI, ET, Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain):
     """
-    Displacement and strain at depth (Part-C) due to buried finite fault in a semiinfinite medium.
+    Displacement and strain at depth (Part-C) 
+    due to buried finite fault in a semiinfinite medium.
 
     Parameters
     ----------
-    XI, ET, Q, Z
+    XI, ET, Q, Z : torch.Tensor
         Station coordinates in fault system.
-    DISL1, DISL2, DISL3
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip-, tensile-dislocations.
     C0, C2
         Instance of classes `COMMON0` and `COMMON2`.
     compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
 
     Returns
     -------
     U
-        If `compute_strain` is `True`, this is a list of 3 displacements and 9 spatial derivatives.
-        If `False`, this is a list of 3 displacements only.
+        If `compute_strain` is `True`, 
+        this is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, this is a list of 3 displacements only:
+        [UX, UY, UZ]
     """
 
     # Initialization
@@ -1017,7 +1052,7 @@ class COMMON0:
         self.C2D = None
 
 
-    def DCCON0(self, ALPHA, DIP):
+    def DCCON0(self, ALPHA, DIP, is_degree):
         """
         Calculate medium constants and fault-dip constants.
 
@@ -1027,6 +1062,8 @@ class COMMON0:
             Medium constant. (lambda+myu)/(lambda+2*myu)
         DIP
             Dip-angle. (degree)
+        is_degree : bool
+            Flag if `DIP` is in degree or not (= in radian). 
 
         Caution
         -------
@@ -1039,8 +1076,12 @@ class COMMON0:
         self.ALP4 = 1.0 - ALPHA
         self.ALP5 = ALPHA
 
-        SD = torch.sin(torch.deg2rad(DIP))
-        CD = torch.cos(torch.deg2rad(DIP))
+        if is_degree:
+            SD = torch.sin(torch.deg2rad(DIP))
+            CD = torch.cos(torch.deg2rad(DIP))
+        else:
+            SD = torch.sin(DIP)
+            CD = torch.cos(DIP)
 
         mask = (torch.abs(CD) < EPS)
         self.SD = torch.where(

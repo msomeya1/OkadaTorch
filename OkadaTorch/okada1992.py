@@ -7,45 +7,55 @@ EPS = 1.0e-6
 
 
 
-def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
+def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, 
+          compute_strain=True, is_degree=True):
     """
-    Displacement and strain at depth due to buried point source in a semiinfinite medium.
+    Displacement and strain at depth due to buried point source 
+    in a semiinfinite medium.
 
     Parameters
     ----------
-    ALPHA
+    ALPHA : float or torch.Tensor
         Medium constant. (lambda+myu)/(lambda+2*myu)
-    X, Y, Z
+    X, Y, Z : torch.Tensor
         Coordinate of observing point.
-    DEPTH
+    DEPTH : float or torch.Tensor
         Source depth.
-    DIP
-        Dip-angle. (degree)
-    POT1, POT2, POT3, POT4
-        Strike-, dip-, tensile- and inflate-potency. \n
-        potency = (moment of double-couple)/myu for POT1,2 \n
-        potency = (intensity of isotropic part)/lambda for POT3 \n
+    DIP : torch.Tensor
+        Dip-angle.
+    POT1, POT2, POT3, POT4 : float or torch.Tensor
+        Strike-, dip-, tensile- and inflate-potency.
+        potency = (moment of double-couple)/myu for POT1,2
+        potency = (intensity of isotropic part)/lambda for POT3
         potency = (intensity of linear dipole)/myu for POT4
-    compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+    compute_strain : bool, dafault True
+        Option to calculate the spatial derivative of the displacement. 
+        New in the PyTorch implementation.
+    is_degree : bool, dafault True
+        Flag if `DIP` is in degree or not (= in radian). 
+        New in the PyTorch implementation.
 
     Returns
     -------
-    If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
-    If `False`, return is a list of 3 displacements only.
+    If `compute_strain` is `True`, 
+    return is a list of 3 displacements and 9 spatial derivatives:
+    [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+    If `False`, return is a list of 3 displacements only:
+    [UX, UY, UZ]
 
-    UX, UY, UZ
+    UX, UY, UZ : torch.Tensor
         Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
-    UXX, UYX, UZX
+    UXX, UYX, UZX : torch.Tensor
         X-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
-    UXY, UYY, UZY
+    UXY, UYY, UZY : torch.Tensor
         Y-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
-    UXZ, UYZ, UZZ
+    UXZ, UYZ, UZZ : torch.Tensor
         Z-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
 
     Notes
     -----
-    Original FORTRAN code was written by Y.Okada in Sep.1991, revised in Nov.1991, May.2002.
+    Original FORTRAN code was written by Y.Okada in Sep.1991, 
+    revised in Nov.1991, May.2002.
     PyTorch implementation by M.Someya, 2025.
     """
 
@@ -62,7 +72,7 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
     
 
     C0 = COMMON0()
-    C0.DCCON0(ALPHA, DIP)
+    C0.DCCON0(ALPHA, DIP, is_degree)
 
 
     # REAL-SOURCE CONTRIBUTION
@@ -106,46 +116,56 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain):
 
 
 
-def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, compute_strain):
+def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, 
+         compute_strain=True, is_degree=True):
     """
-    Displacement and strain at depth due to buried finite fault in a semiinfinite medium.
+    Displacement and strain at depth due to buried finite fault 
+    in a semiinfinite medium.
 
     Parameters
     ----------
-    ALPHA
+    ALPHA : float or torch.Tensor
         Medium constant. (lambda+myu)/(lambda+2*myu)
-    X, Y, Z
+    X, Y, Z : torch.Tensor
         Coordinate of observing point.
-    DEPTH
+    DEPTH : float or torch.Tensor
         Depth of reference point.
-    DIP
-        Dip-angle. (degree)
-    AL1, AL2
+    DIP : torch.Tensor
+        Dip-angle.
+    AL1, AL2 : float or torch.Tensor
         Fault length range.
-    AW1, AW2
+    AW1, AW2 : float or torch.Tensor
         Fault width range.
-    DISL1, DISL2, DISL3
+    DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip-, tensile-dislocations.
-    compute_strain : bool
-        Option to calculate the spatial derivative of the displacement, new in the PyTorch implementation.
+    compute_strain : bool, dafault True
+        Option to calculate the spatial derivative of the displacement.
+        New in the PyTorch implementation.
+    is_degree : bool, dafault True
+        Flag if `DIP` is in degree or not (= in radian). 
+        New in the PyTorch implementation.
 
     Returns
     -------
-    If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives.
-    If `False`, return is a list of 3 displacements only.
+    If `compute_strain` is `True`, 
+    return is a list of 3 displacements and 9 spatial derivatives:
+    [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+    If `False`, return is a list of 3 displacements only:
+    [UX, UY, UZ]
 
-    UX, UY, UZ
+    UX, UY, UZ : torch.Tensor
         Displacement. unit = (unit of dislocation)
-    UXX, UYX, UZX
+    UXX, UYX, UZX : torch.Tensor
         X-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
-    UXY, UYY, UZY
+    UXY, UYY, UZY : torch.Tensor
         Y-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
-    UXZ, UYZ, UZZ
+    UXZ, UYZ, UZZ : torch.Tensor
         Z-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
 
     Notes
     -----
-    Original FORTRAN code was written by Y.Okada in Sep.1991, revised in Nov.1991, Apr.1992, May.1993, Jul.1993, May.2002.
+    Original FORTRAN code was written by Y.Okada in Sep.1991, 
+    revised in Nov.1991, Apr.1992, May.1993, Jul.1993, May.2002.
     PyTorch implementation by M.Someya, 2025.
     """
 
@@ -175,7 +195,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, co
 
 
     C0 = COMMON0()
-    C0.DCCON0(ALPHA, DIP)
+    C0.DCCON0(ALPHA, DIP, is_degree)
     SD, CD = C0.SD, C0.CD 
 
 
