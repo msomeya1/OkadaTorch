@@ -6,13 +6,13 @@
 
 
 The three methods of `OkadaWrapper`, `compute`, `gradient`, and `hessian`, all take as arguments the variables `coords` and `params` of type dict.
-- `"coords"` is a dictionary that stores the coordinates of observation points, allowing `"x", "y", "z"` as keys, and the corresponding values are tensors that represent the coordinate values.
+- `"coords"` is a dictionary that stores the coordinates of stations, allowing `"x", "y", "z"` as keys, and the corresponding values are tensors that represent the coordinate values.
 - `"params"` is a dictionary that stores the values of fault parameters, allowing `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip"` as keys.
 
 
 
 The explanation of each key is as follows.
-- `x,y,z`: Coordinates of the observation point. Values in the local Cartesian coordinate system with x in the east, y in the north, and z in the vertical. See also the `"Coordinate System"` section below. Note that z must be negative, and if you try to reference a point in air, the displacement/strain there will return 0.
+- `x,y,z`: Coordinates of the station. Values in the local Cartesian coordinate system with x in the east, y in the north, and z in the vertical. See also the `"Coordinate System"` section below. Note that z must be negative, and if you try to reference a point in air, the displacement/strain there will return 0.
 - `x_ref, y_ref`: x,y coordinates of the epicenter. For a point source, these are the coordinates of the point, but for a rectangular fault, these are the coordinates of the top end of the fault (often called the "reference point"). It is not the coordinate of the center of the rectangle.
 - `depth`: Depth of the source ($>0$). For a point source, this is the depth of the point, but for a rectangular fault, this is the coordinate of the top end of the fault ("reference point").
 - `length, width`: These parameters are specific to a rectangular fault and, as the name implies, length (length of one side in the strike direction) and width (length of one side in the dip direction).
@@ -29,17 +29,15 @@ If `False`, only the displacement is computed (In this cace, variables that are 
 
 
 
-The most important feature of this wrapper function is that
-- there can be multiple observation points
-- but only one set of fault parameters (parameters for one fault) is allowed. 
 
-In other words, it is not possible to have multiple faults and calculate the displacements, etc. (if you want to do such a thing, simply call `OkadaWrapper` multiple times).
 
-For the purposes described above, each value of `params` must be a scalar tensor.
-On the other hand, `"x", "y" (, "z")` can be a 1D or 2D or 3D tensor (of course, these shapes must be common). 
-In this case, the value of the output at each observation point is output as a tensor of the same shape as `"x", "y" (, "z")`.
 
-Using a for-loop to calculate the outputs at multiple observation points simultaneously would make the calculation very slow. 
+<!-- 単一観測点における変位と歪みを計算するには、次のようにします。
+
+
+複数観測点における変位と歪みを計算する場合には、xとyを1次元または2次元のテンソルにするだけです。もちろん、xとyのdimとshapeは一致していなければなりません。 -->
+
+Using a for-loop to calculate the outputs at multiple stations simultaneously would make the calculation very slow. 
 For this reason, the `gradient` and `hessian` methods of `OkadaWrapper` use PyTorch's `vmap` function to parallelize the computation. 
 
 > [!CAUTION]
@@ -58,7 +56,7 @@ For this reason, the `gradient` and `hessian` methods of `OkadaWrapper` use PyTo
 
 ## `compute` method
 
-Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the observation point are calculated.
+Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the station are calculated.
 
 Currently, multiple station coordinates can be specified, but only one set of source parameters can be specified. 
 If you have multiple sources, you need to call this method multiple times.
@@ -108,7 +106,7 @@ If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial
 If `False`, return is a list of 3 displacements only:
 `[ux, uy, uz]`
 
-The shape of each tensor is same as that of `coords["x"]` etc.
+The shape of each tensor is same as that of `x,y(,z)`.
 
 - `ux, uy, uz` : _torch.Tensor_
     - Displacement.
@@ -119,6 +117,9 @@ The shape of each tensor is same as that of `coords["x"]` etc.
 - `uxz, uyz, uzz` : _torch.Tensor_
     - z-derivative.
 
+
+> [!NOTE]
+> There's no `IRET` which existed in `DC3D0` and `DC3D`.
 
 > [!NOTE]
 > `uij` means $\frac{\partial u_i}{\partial x_j}$
@@ -136,7 +137,7 @@ The shape of each tensor is same as that of `coords["x"]` etc.
 
 ## `gradient` method
 
-Calculate gradient with respect to specified `arg` (one of coordinates or parameters) at the observation point, given the source parameters.
+Calculate gradient with respect to specified `arg` (one of coordinates or parameters) at the station, given the source parameters.
 PyTorch's function `jacfwd` is used internally.
 
 Currently, only a single `arg` can be specified.
@@ -205,7 +206,7 @@ If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial
 If `False`, return is a list of 3 displacements differentiated by `arg`: \
 `[∂(ux)/∂(arg), ∂(uy)/∂(arg), ∂(uz)/∂(arg)]`
 
-The shape of each tensor is same as that of `coords["x"]` etc.
+The shape of each tensor is same as that of `x,y(,z)`.
 
 
 
@@ -222,7 +223,7 @@ The shape of each tensor is same as that of `coords["x"]` etc.
 
 ## `hessian` method
 
-Calculate hessian (2nd-order derivatives) with respect to specified `arg1` and `arg2` at the observation point, given the source parameters.
+Calculate hessian (2nd-order derivatives) with respect to specified `arg1` and `arg2` at the station, given the source parameters.
 
 
 
@@ -277,4 +278,4 @@ If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial
 If `False`, return is a list of 3 displacements differentiated by `arg`: \
 `[∂^2(ux)/∂(arg1)∂(arg2), ∂^2(uy)/∂(arg1)∂(arg2), ∂^2(uz)/∂(arg1)∂(arg2)]`
 
-The shape of each tensor is same as that of `coords["x"]` etc.
+The shape of each tensor is same as that of `x,y(,z)`.

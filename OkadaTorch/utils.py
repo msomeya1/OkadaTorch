@@ -26,18 +26,19 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
     Returns
     -------
-    If `compute_strain` is `True`, 
-    return is a list of 3 displacements and 6 spatial derivatives:
-    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
-    If `False`, return is a list of 3 displacements only:
-    [U1, U2, U3]
+    U : list of torch.Tensor
+        If `compute_strain` is `True`, 
+        U is a list of 3 displacements and 6 spatial derivatives:
+        [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+        If `False`, U is a list of 3 displacements only:
+        [U1, U2, U3]
 
-    U1, U2, U3 : torch.Tensor
-        Displacement. unit = (unit of dislocation) 
-    U11, U12, U21, U22 : torch.Tensor
-        Strain. unit = (unit of dislocation) / (unit of XI,ET,Q)
-    U31, U32 : torch.Tensor
-        Tilt. unit = (unit of dislocation) / (unit of XI,ET,Q)
+        U1, U2, U3 : torch.Tensor
+            Displacement. unit = (unit of dislocation) 
+        U11, U12, U21, U22 : torch.Tensor
+            Strain. unit = (unit of dislocation) / (unit of XI,ET,Q)
+        U31, U32 : torch.Tensor
+            Tilt. unit = (unit of dislocation) / (unit of XI,ET,Q)
 
     Notes
     -----
@@ -223,11 +224,11 @@ def _UA0(X, Y, D, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 
@@ -357,11 +358,11 @@ def _UB0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 
@@ -509,11 +510,11 @@ def _UC0(X, Y, D, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 
@@ -654,11 +655,11 @@ def _UA(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 
@@ -766,11 +767,11 @@ def _UB(XI, ET, Q, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 
@@ -919,11 +920,11 @@ def _UC(XI, ET, Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain):
 
     Returns
     -------
-    U
+    U : list of torch.Tensor
         If `compute_strain` is `True`, 
-        this is a list of 3 displacements and 9 spatial derivatives:
+        U is a list of 3 displacements and 9 spatial derivatives:
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-        If `False`, this is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
     """
 

@@ -20,7 +20,7 @@ class OkadaWrapper:
         """
         Perform forward computations; given the source parameters, 
         the displacements and/or their spatial derivatives 
-        at the observation point are calculated.
+        at the station are calculated.
 
         Currently, multiple station coordinates can be specified, 
         but only one set of source parameters can be specified. 
@@ -92,7 +92,7 @@ class OkadaWrapper:
             if "z" in coords:
                 z = coords["z"]
                 assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
-                out = DC3D(
+                out, _ = DC3D(
                     alpha_1992, xx, yy, z, depth, dip, 0.0, length, -width, 0.0, 
                     u_strike, u_dip, 0.0, compute_strain, is_degree
                 )
@@ -108,7 +108,7 @@ class OkadaWrapper:
             if "z" in coords:
                 z = coords["z"]
                 assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
-                out = DC3D0(
+                out, _ = DC3D0(
                     alpha_1992, xx, yy, z, depth, dip, 
                     u_strike, u_dip, 0.0, 0.0, compute_strain, is_degree
                 )
@@ -152,7 +152,7 @@ class OkadaWrapper:
                  compute_strain:bool=True, is_degree:bool=True, nu:float=0.25):
         """
         Calculate gradient with respect to specified `arg` 
-        (one of coordinates or parameters) at the observation point, 
+        (one of coordinates or parameters) at the station, 
         given the source parameters.
 
         Currently, only a single `arg` can be specified.
@@ -264,7 +264,7 @@ class OkadaWrapper:
                 compute_strain:bool=True, is_degree:bool=True, nu:float=0.25):
         """
         Calculate hessian (2nd-order derivatives) with respect to 
-        specified `arg1` and `arg2` at the observation point, 
+        specified `arg1` and `arg2` at the station, 
         given the source parameters.
 
         

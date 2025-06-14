@@ -28,18 +28,19 @@ def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True):
 
     Returns
     -------
-    If `compute_strain` is `True`, 
-    return is a list of 3 displacements and 6 spatial derivatives:
-    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
-    If `False`, return is a list of 3 displacements only:
-    [U1, U2, U3]
+    U : list of torch.Tensor
+        If `compute_strain` is `True`, 
+        U is a list of 3 displacements and 6 spatial derivatives:
+        [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+        If `False`, return is a list of 3 displacements only:
+        [U1, U2, U3]
 
-    U1, U2, U3 : torch.Tensor
-        Displacement. unit = (unit of dislocation) / area
-    U11, U12, U21, U22 : torch.Tensor
-        Strain. unit = (unit of dislocation) / (unit of X,Y,D) / area
-    U31, U32 : torch.Tensor
-        Tilt. unit = (unit of dislocation) / (unit of X,Y,D) / area
+        U1, U2, U3 : torch.Tensor
+            Displacement. unit = (unit of dislocation) / area
+        U11, U12, U21, U22 : torch.Tensor
+            Strain. unit = (unit of dislocation) / (unit of X,Y,D) / area
+        U31, U32 : torch.Tensor
+            Tilt. unit = (unit of dislocation) / (unit of X,Y,D) / area
 
     Notes
     -----
@@ -186,18 +187,19 @@ def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain=T
 
     Returns
     -------
-    If `compute_strain` is `True`, 
-    return is a list of 3 displacements and 6 spatial derivatives:
-    [U1, U2, U3, U11, U12, U21, U22, U31, U32]
-    If `False`, return is a list of 3 displacements only:
-    [U1, U2, U3]
+    U : list of torch.Tensor
+        If `compute_strain` is `True`, 
+        U is a list of 3 displacements and 6 spatial derivatives:
+        [U1, U2, U3, U11, U12, U21, U22, U31, U32]
+        If `False`, U is a list of 3 displacements only:
+        [U1, U2, U3]
 
-    U1, U2, U3 : torch.Tensor
-        Displacement. unit = (unit of dislocation) 
-    U11, U12, U21, U22 : torch.Tensor
-        Strain. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
-    U31, U32 : torch.Tensor
-        Tilt. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+        U1, U2, U3 : torch.Tensor
+            Displacement. unit = (unit of dislocation) 
+        U11, U12, U21, U22 : torch.Tensor
+            Strain. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+        U31, U32 : torch.Tensor
+            Tilt. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
 
     Notes
     -----

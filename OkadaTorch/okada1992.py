@@ -37,20 +37,28 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
 
     Returns
     -------
-    If `compute_strain` is `True`, 
-    return is a list of 3 displacements and 9 spatial derivatives:
-    [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-    If `False`, return is a list of 3 displacements only:
-    [UX, UY, UZ]
+    U : list of torch.Tensor
+        If `compute_strain` is `True`, 
+        U is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, U is a list of 3 displacements only:
+        [UX, UY, UZ]
 
-    UX, UY, UZ : torch.Tensor
-        Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
-    UXX, UYX, UZX : torch.Tensor
-        X-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
-    UXY, UYY, UZY : torch.Tensor
-        Y-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
-    UXZ, UYZ, UZZ : torch.Tensor
-        Z-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        UX, UY, UZ : torch.Tensor
+            Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
+        UXX, UYX, UZX : torch.Tensor
+            X-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        UXY, UYY, UZY : torch.Tensor
+            Y-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        UXZ, UYZ, UZZ : torch.Tensor
+            Z-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+
+    IRET : torch.Tensor (int)
+        Return code.
+        IRET=0 means normal,
+        IRET=1 means singular,
+        IRET=2 means positive z was given.
+
 
     Notes
     -----
@@ -58,9 +66,6 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
     revised in Nov.1991, May.2002.
     PyTorch implementation by M.Someya, 2025.
     """
-
-    # if (Z > 0.0).any():
-    #     raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
     
 
     # Initialization
@@ -69,8 +74,14 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
     DUA = [torch.zeros_like(X) for _ in range(N_variable)]
     DUB = [torch.zeros_like(X) for _ in range(N_variable)]
     DUC = [torch.zeros_like(X) for _ in range(N_variable)]
-    
+    IRET = torch.zeros_like(X, dtype=torch.int)
 
+    IRET = torch.where(
+        Z > 0.0, 
+        2,
+        IRET
+    )
+    
     C0 = COMMON0()
     C0.DCCON0(ALPHA, DIP, is_degree)
 
@@ -82,8 +93,11 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
 
 
     # IN CASE OF SINGULAR (R=0)
-    # if (C1.R==0.0).any():
-    #     raise ValueError("SINGULAR (R=0; IRET=1)")
+    IRET = torch.where(
+        C1.R==0.0, 
+        1,
+        IRET
+    )
     
     DUA = _UA0(X, Y, DD, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
     if compute_strain:
@@ -110,7 +124,7 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
             DU = DU + DUC[I-9]
         U[I] = U[I] + DU
 
-    return U
+    return U, IRET
     
 
 
@@ -147,20 +161,28 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
 
     Returns
     -------
-    If `compute_strain` is `True`, 
-    return is a list of 3 displacements and 9 spatial derivatives:
-    [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
-    If `False`, return is a list of 3 displacements only:
-    [UX, UY, UZ]
+    U : list of torch.Tensor
+        If `compute_strain` is `True`, 
+        U is a list of 3 displacements and 9 spatial derivatives:
+        [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
+        If `False`, U is a list of 3 displacements only:
+        [UX, UY, UZ]
 
-    UX, UY, UZ : torch.Tensor
-        Displacement. unit = (unit of dislocation)
-    UXX, UYX, UZX : torch.Tensor
-        X-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
-    UXY, UYY, UZY : torch.Tensor
-        Y-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
-    UXZ, UYZ, UZZ : torch.Tensor
-        Z-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        UX, UY, UZ : torch.Tensor
+            Displacement. unit = (unit of dislocation)
+        UXX, UYX, UZX : torch.Tensor
+            X-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        UXY, UYY, UZY : torch.Tensor
+            Y-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        UXZ, UYZ, UZZ : torch.Tensor
+            Z-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+            
+    IRET : torch.Tensor (whose dtype is torch.int)
+        Return code.
+        IRET=0 means normal,
+        IRET=1 means singular,
+        IRET=2 means positive z was given.
+
 
     Notes
     -----
@@ -168,17 +190,6 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     revised in Nov.1991, Apr.1992, May.1993, Jul.1993, May.2002.
     PyTorch implementation by M.Someya, 2025.
     """
-
-    # if (Z > 0.0).any():
-    #     raise ValueError("POSITIVE Z WAS GIVEN (Z>0; IRET=2)")
-    # if z>0, instead of throwing error, overrite z to be zero
-    # Z = torch.where(
-    #     Z > 0.0,
-    #     0.0,
-    #     Z
-    # )
-    
-
 
 
     # Initialization
@@ -192,7 +203,13 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     ET = [torch.zeros_like(X) for _ in range(2)]
     KXI = [torch.zeros_like(X, dtype=torch.int) for _ in range(2)]
     KET = [torch.zeros_like(X, dtype=torch.int) for _ in range(2)]
+    IRET = torch.zeros_like(X, dtype=torch.int)
 
+    IRET = torch.where(
+        Z > 0.0, 
+        2,
+        IRET
+    )
 
     C0 = COMMON0()
     C0.DCCON0(ALPHA, DIP, is_degree)
@@ -232,17 +249,16 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
 
 
     # REJECT SINGULAR CASE
-    ## ON FAULT EDGE
-    # if torch.logical_and(Q == 0.0, torch.logical_or( 
-    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
-    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
-    #     )).any():
-    #     raise ValueError("SINGULAR (IRET=1)")
-    # if singular, instead of throwing error, overrite results to be zero
-    # mask1 = torch.logical_and(Q == 0.0, torch.logical_or( 
-    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
-    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
-    # ))
+    # ON FAULT EDGE
+    mask1 = torch.logical_and(Q == 0.0, torch.logical_or( 
+        torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+        torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    ))
+    IRET = torch.where(
+        mask1, 
+        1,
+        IRET
+    )
 
     
     ## ON NEGATIVE EXTENSION OF FAULT EDGE
@@ -320,20 +336,18 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         P - AW2
     )
 
+
     # REJECT SINGULAR CASE
-    ## ON FAULT EDGE
-    # if torch.logical_and(Q == 0.0, torch.logical_or( 
-    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
-    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
-    #     )).any():
-    #     raise ValueError("SINGULAR (IRET=1)")
-    # if singular, instead of throwing error, overrite results to be zero
-    # mask2 = torch.logical_and(Q == 0.0, torch.logical_or( 
-    #     torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
-    #     torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
-    # ))
-
-
+    # ON FAULT EDGE
+    mask2 = torch.logical_and(Q == 0.0, torch.logical_or( 
+        torch.logical_and(XI[0] * XI[1] <= 0.0, ET[0] * ET[1] == 0.0),
+        torch.logical_and(ET[0] * ET[1] <= 0.0, XI[0] * XI[1] == 0.0)
+    ))
+    IRET = torch.where(
+        mask2, 
+        1,
+        IRET
+    )
     
     
     ## ON NEGATIVE EXTENSION OF FAULT EDGE
@@ -394,11 +408,4 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
                     
 
 
-    # for I in range(N_variable):
-    #     U[I] = torch.where(
-    #         torch.logical_or(mask1, mask2),
-    #         0.0,
-    #         U[I]
-    #     )
-
-    return U
+    return U, IRET

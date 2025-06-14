@@ -1,7 +1,5 @@
 # How to use `SPOINT` and `SRECTF`
 
-> [!NOTE]
-> In the following, `Uij` means $\frac{\partial U_i}{\partial x_j}$.
 
 
 ## `SPOINT`
@@ -45,6 +43,8 @@ If `False`, return is a list of 3 displacements only:
     unit = (unit of dislocation) / (unit of X,Y,D) / area
 
 
+> [!NOTE]
+> `Uij` means $\frac{\partial U_i}{\partial x_j}$.
 
 
 
@@ -57,11 +57,25 @@ If `False`, return is a list of 3 displacements only:
 
 
 
-
-<!-- ### Examples
-
+### Examples
 
 
+<!-- 単一観測点における変位と歪みを計算するには、次のようにします。
+```python
+
+
+ALP = 0.5
+X = torch.tensor(0.0)
+Y = torch.tensor(0.0)
+D = 
+
+
+SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True)
+
+```
+
+
+複数観測点における変位と歪みを計算する場合には、xとyを1次元または2次元のテンソルにするだけです。もちろん、xとyのdimとshapeは一致していなければなりません。
 ```python
 import numpy as np
 import torch
@@ -81,10 +95,14 @@ disl1 = 1
 disl2 = 1
 
 
-``` -->
+```  -->
 
 
----
+
+
+
+
+
 
     
 ## `SRECTF`
@@ -130,6 +148,10 @@ If `False`, return is a list of 3 displacements only:
 <!-- ### Examples
 
 
+単一観測点における変位と歪みを計算するには、次のようにします。
+
+
+複数観測点における変位と歪みを計算する場合には、xとyを1次元または2次元のテンソルにするだけです。もちろん、xとyのdimとshapeは一致していなければなりません。
 
 ```python
 import numpy as np
