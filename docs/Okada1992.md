@@ -114,7 +114,7 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
 
 - U : _list of torch.Tensor_
     - If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives:
-    `[UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]` \
+    `[UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]`
     - If `False`, return is a list of 3 displacements only:
     `[UX, UY, UZ]`
 
