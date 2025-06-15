@@ -1,4 +1,4 @@
-# `OkadaWrapper` Class
+# How to use `OkadaWrapper` Class
 
 
 `OkadaWrapper` is a convenient wrapper class to use functions `SPOINT`, `SRECTF`, `DC3D0` and `DC3D`.
@@ -12,12 +12,12 @@ The three methods of `OkadaWrapper`, `compute`, `gradient`, and `hessian`, all t
 
 
 The explanation of each key is as follows.
-- `x,y,z`: Coordinates of the station. Values in the local Cartesian coordinate system with x in the east, y in the north, and z in the vertical. See also the `"Coordinate System"` section below. Note that z must be negative, and if you try to reference a point in air, the displacement/strain there will return 0.
+- `x,y,z`: Coordinates of the station. Values in the local Cartesian coordinate system with x in the east, y in the north, and z in the vertical.  Note that z must be negative.
 - `x_ref, y_ref`: x,y coordinates of the epicenter. For a point source, these are the coordinates of the point, but for a rectangular fault, these are the coordinates of the top end of the fault (often called the "reference point"). It is not the coordinate of the center of the rectangle.
 - `depth`: Depth of the source ($>0$). For a point source, this is the depth of the point, but for a rectangular fault, this is the coordinate of the top end of the fault ("reference point").
 - `length, width`: These parameters are specific to a rectangular fault and, as the name implies, length (length of one side in the strike direction) and width (length of one side in the dip direction).
-- `strike, dip, rake`: Specified in degrees.
-- `slip`: This name can be misleading. For rectangular faults, this is as the name implies, the amount of slip. In the case of a point source, this represents the potency (seismic moment divided by the stiffness ratio, which is also equal to slip multiplied by the small area of the fault). Since it is complicated to specify arguments differently for point seismic sources and rectangular faults, they are specified with the same name in this way.
+- `strike, dip, rake`: Specified in degrees. <!-- is_degreeによるからこれは本当ではない -->
+- `slip`: This name can be misleading. For rectangular faults, this is as the name implies, the amount of slip. In the case of a point source, this represents the potency (which is equal to seismic moment divided by the elastic constant, also equal to slip amount multiplied by the infinitesimal area of the fault). Since it is complicated to specify arguments differently for point seismic sources and rectangular faults, they are specified with the same name in this way.
 
 In addition, there are three optional arguments: `compute_strain`, `is_degree` and `nu`.
 - `compute_strain`: The original FORTRAN subroutine computes both displacements and strains at a given location, but in some cases displacement alone may be sufficient. 
@@ -37,8 +37,9 @@ If `False`, only the displacement is computed (In this cace, variables that are 
 
 複数観測点における変位と歪みを計算する場合には、xとyを1次元または2次元のテンソルにするだけです。もちろん、xとyのdimとshapeは一致していなければなりません。 -->
 
-Using a for-loop to calculate the outputs at multiple stations simultaneously would make the calculation very slow. 
+<!-- Using a for-loop to calculate the outputs at multiple stations simultaneously would make the calculation very slow. 
 For this reason, the `gradient` and `hessian` methods of `OkadaWrapper` use PyTorch's `vmap` function to parallelize the computation. 
+ここは、forループを使うと遅くなるからではなく、そのままjacfwdを使うと期待した結果にならないから、と言う理由 -->
 
 > [!CAUTION]
 > Since the author does not fully understand how `vmap` function works, it may exhibit unexpected behavior. 
@@ -82,31 +83,19 @@ If you have multiple sources, you need to call this method multiple times.
     - Poisson's ratio.
 
 
-> [!IMPORTANT]
-> In the `compute` method (and of cource, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
-> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `SPOINT` is called.
-> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `SRECTF` is called.
-> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
-> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `DC3D` is called.
->
-> If the required keys are missing, an error is raised. If unnecessary keys are included, they are ignored.
 
-<!-- > - if `coords` has `"x", "y"` and not `"z"`, and `params` has `"x_ref", "y_ref", "depth", "strike", "dip", "rake", "slip"` and not `"length", "width"`, then `SPOINT` is called.
-> - if `coords` has `"x", "y"` and not `"z"`, and `params` has `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip"`, then `SRECTF` is called.
-> - if `coords` has `"x", "y", "z"`, and `params` has `"x_ref", "y_ref", "depth", "strike", "dip", "rake", "slip"` and not `"length", "width"`, then `DC3D0` is called.
-> - if `coords` has `"x", "y", "z"`, and `params` has `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip"`, then `DC3D` is called. -->
 
 
 ### Outputs
 
 
-If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives:
-`[ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz]`
+If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives: \
+`[ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz]` \
+i.e., 
+$$\left[u_x, u_y, u_z, \frac{\partial u_x}{\partial x}, \ldots , \frac{\partial u_z}{\partial z}\right].$$
 
 If `False`, return is a list of 3 displacements only:
 `[ux, uy, uz]`
-
-The shape of each tensor is same as that of `x,y(,z)`.
 
 - `ux, uy, uz` : _torch.Tensor_
     - Displacement.
@@ -117,16 +106,31 @@ The shape of each tensor is same as that of `x,y(,z)`.
 - `uxz, uyz, uzz` : _torch.Tensor_
     - z-derivative.
 
+The shape of each tensor is same as that of `x,y(,z)`.
+
+<!-- outputの単位については、呼び出されているそれぞれの関数の説明を見てください。 -->
+
+> [!IMPORTANT]
+> In the `compute` method (and of cource, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
+> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `SPOINT` is called.
+> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `SRECTF` is called.
+> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
+> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `DC3D` is called.
+>
+> If the required keys are missing, an error is raised. If unnecessary keys are included, they are ignored.
+
+
+
+
 
 > [!NOTE]
 > There's no `IRET` which existed in `DC3D0` and `DC3D`.
 
-> [!NOTE]
-> `uij` means $\frac{\partial u_i}{\partial x_j}$
 
 
 
 
+### Examples
 
 
     
@@ -201,7 +205,10 @@ It is easier to use `loss.backward()`, as described later. -->
 
 
 If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives differentiated by `arg`: \
-`[∂(ux)/∂(arg), ∂(uy)/∂(arg), ∂(uz)/∂(arg), ∂(uxx)/∂(arg), ..., ∂(uzz)/∂(arg)]`
+`[∂(ux)/∂(arg), ∂(uy)/∂(arg), ∂(uz)/∂(arg), ∂(uxx)/∂(arg), ..., ∂(uzz)/∂(arg)]` \
+i.e., 
+$$\left[\frac{\partial u_x}{\partial\text{(arg)}}, \frac{\partial u_y}{\partial\text{(arg)}}, \frac{\partial u_z}{\partial\text{(arg)}}, \frac{\partial}{\partial\text{(arg)}}\left(\frac{\partial u_x}{\partial x}\right), \ldots, \frac{\partial}{\partial\text{(arg)}}\left(\frac{\partial u_z}{\partial z}\right)\right].$$
+
 
 If `False`, return is a list of 3 displacements differentiated by `arg`: \
 `[∂(ux)/∂(arg), ∂(uy)/∂(arg), ∂(uz)/∂(arg)]`
@@ -215,6 +222,12 @@ The shape of each tensor is same as that of `x,y(,z)`.
 > In this case, the gradient value could be obtained explicitly by the `gradient` method and passed to the optimizer, but this would be redundant.
 > Instead, it is easier to define a loss function, specify the parameters to be optimized, and then use `loss.backward()`.
 > See the corresponding Jupyter notebook for more information on this.
+
+
+
+
+### Examples
+
 
 
 
@@ -273,9 +286,30 @@ Of course, if there is no length or width in `params`, you cannot specify length
 
 
 If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives differentiated by `arg1` and `arg2`: \
-`[∂^2(ux)/∂(arg1)∂(arg2), ∂^2(uy)/∂(arg1)∂(arg2), ∂^2(uz)/∂(arg1)∂(arg2), ∂^2(uxx)/∂(arg1)∂(arg2), ..., ∂^2(uzz)/∂(arg1)∂(arg2)]`
+`[∂^2(ux)/∂(arg1)∂(arg2), ∂^2(uy)/∂(arg1)∂(arg2), ∂^2(uz)/∂(arg1)∂(arg2), ∂^2(uxx)/∂(arg1)∂(arg2), ..., ∂^2(uzz)/∂(arg1)∂(arg2)]` \
+i.e.,
+$$\left[\frac{\partial^2 u_x}{\partial\text{(arg1)}\partial\text{(arg2)}}, \frac{\partial^2 u_y}{\partial\text{(arg1)}\partial\text{(arg2)}}, \frac{\partial^2 u_z}{\partial\text{(arg1)}\partial\text{(arg2)}}, \frac{\partial^2}{\partial\text{(arg1)}\partial\text{(arg2)}}\left(\frac{\partial u_x}{\partial x}\right), \ldots, \frac{\partial^2}{\partial\text{(arg1)}\partial\text{(arg2)}}\left(\frac{\partial u_z}{\partial z}\right)\right].$$
+
 
 If `False`, return is a list of 3 displacements differentiated by `arg`: \
 `[∂^2(ux)/∂(arg1)∂(arg2), ∂^2(uy)/∂(arg1)∂(arg2), ∂^2(uz)/∂(arg1)∂(arg2)]`
 
 The shape of each tensor is same as that of `x,y(,z)`.
+
+
+
+
+
+
+### Examples
+
+
+
+
+
+
+---
+
+- [Back to README.md](../README.md)
+- [Go to "How to use `SPOINT` and `SRECTF`"](./Okada1985.md)
+- [Go to "How to use `DC3D0` and `DC3D`"](./Okada1992.md)

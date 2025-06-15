@@ -10,7 +10,7 @@ Calculate surface displacement, strain, tilt due to buried point source in a sem
 ### Inputs
 
 - `ALP` : _float or torch.Tensor_
-    - Medium constant. $\frac{\mu}{\lambda+\mu}$
+    - Medium constant, equal to $\frac{\mu}{\lambda+\mu}$.
 - `X, Y` : _torch.Tensor_
     - Coordinate of station.
 - `D` : _float or torch.Tensor_
@@ -26,7 +26,7 @@ Calculate surface displacement, strain, tilt due to buried point source in a sem
 
 ### Outputs
 
-If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives:
+If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives: \
 `[U1, U2, U3, U11, U12, U21, U22, U31, U32]`
 
 If `False`, return is a list of 3 displacements only:
@@ -34,17 +34,16 @@ If `False`, return is a list of 3 displacements only:
 
 - `U1, U2, U3` : _torch.Tensor_
     - Displacement. 
-    unit = (unit of dislocation) / area
+    $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(area)}}$
 - `U11, U12, U21, U22` : _torch.Tensor_
     - Strain. 
-    unit = (unit of dislocation) / (unit of X,Y,D) / area
+    $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y,D)}\cdot\text{(area)}}$
 - `U31, U32` : _torch.Tensor_
     - Tilt. 
-    unit = (unit of dislocation) / (unit of X,Y,D) / area
+    $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y,D)}\cdot\text{(area)}}$
 
 
-> [!NOTE]
-> `Uij` means $\frac{\partial U_i}{\partial x_j}$.
+The shape of each tensor is same as that of `X,Y`.
 
 
 
@@ -111,7 +110,7 @@ Calculate surface displacements, strains and tilts due to rectangular fault in a
 ### Inputs
 
 - `ALP` : _float or torch.Tensor_
-    - Medium constant. $\frac{\mu}{\lambda+\mu}$
+    - Medium constant, equal to $\frac{\mu}{\lambda+\mu}$.
 - `X, Y` : _torch.Tensor_
     - Coordinate of station.
 - `D` : _float or torch.Tensor_
@@ -129,19 +128,24 @@ Calculate surface displacements, strains and tilts due to rectangular fault in a
 
 ### Outputs
 
-If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives:
+If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives: \
 `[U1, U2, U3, U11, U12, U21, U22, U31, U32]`
 
 If `False`, return is a list of 3 displacements only:
 `[U1, U2, U3]`
 
 - `U1, U2, U3` : _torch.Tensor_
-    - Displacement. unit = (unit of dislocation) 
+    - Displacement. 
+    $\text{unit} = \text{(unit of dislocation)}$
 - `U11, U12, U21, U22` : _torch.Tensor_
-    - Strain. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+    - Strain. 
+    $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y, ... , AW)}}$
 - `U31, U32` : _torch.Tensor_
-    - Tilt. unit = (unit of dislocation) / (unit of X,Y, ... , AW)
+    - Tilt. 
+    $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y, ... , AW)}}$
 
+
+The shape of each tensor is same as that of `X,Y`.
 
 
 
@@ -173,3 +177,13 @@ disl2 = 1
 
 ux, uy, uz, uxx, uxy, uyx, uyy, uzx, uzy = SRECTF(0.5, X, Y, 0.1, 0.2, 0.2, sd, cd, disl1, disl2, 0, True)
 ``` -->
+
+
+
+
+
+---
+
+- [Back to README.md](../README.md)
+- [Go to "How to use `DC3D0` and `DC3D`"](./Okada1992.md)
+- [Go to "How to use `OkadaWrapper` Class"](./OkadaWrapper.md)

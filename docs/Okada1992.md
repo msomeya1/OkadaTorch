@@ -10,7 +10,7 @@ Calculate displacement and strain at depth due to buried point source in a semii
 ### Inputs
 
 - `ALPHA` : _float or torch.Tensor_
-    - Medium constant. $\frac{\lambda+\mu}{\lambda+2\mu}$
+    - Medium constant, equal to $\frac{\lambda+\mu}{\lambda+2\mu}$.
 - `X, Y, Z` : _torch.Tensor_
     - Coordinate of observing point.
 - `DEPTH` : _float or torch.Tensor_
@@ -19,9 +19,9 @@ Calculate displacement and strain at depth due to buried point source in a semii
     - Dip-angle.
 - `POT1, POT2, POT3, POT4` : _float or torch.Tensor_
     - Strike-, dip-, tensile- and inflate-potency.
-    - potency = (moment of double-couple)/myu for POT1,2
-    - potency = (intensity of isotropic part)/lambda for POT3
-    - potency = (intensity of linear dipole)/myu for POT4
+    - $\text{potency} = \frac{\text{(moment of double-couple)}}{\mu}$ for `POT1`, `POT2`.
+    - $\text{potency} = \frac{\text{(intensity of isotropic part)}}{\lambda}$ for `POT3`.
+    - $\text{potency} = \frac{\text{(intensity of linear dipole)}}{\mu}$ for `POT4`.
 - `compute_strain` : _bool, dafault True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
@@ -33,31 +33,38 @@ Calculate displacement and strain at depth due to buried point source in a semii
 ### Outputs
 
 - U : _list of torch.Tensor_
-    - If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives:
+    - If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives: \
     `[UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]`
     - If `False`, return is a list of 3 displacements only:
     `[UX, UY, UZ]`
 
     - `UX, UY, UZ` : _torch.Tensor_
-        - Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
+        - Displacement. 
+        $\text{unit} = \frac{\text{(unit of potency)}}{\text{(unit of X,Y,Z,DEPTH)}^2}$
     - `UXX, UYX, UZX` : _torch.Tensor_
-        - X-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        - X-derivative. 
+        $\text{unit} = \frac{\text{(unit of potency)}}{\text{(unit of X,Y,Z,DEPTH)}^3}$
     - `UXY, UYY, UZY` : _torch.Tensor_
-        - Y-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        - Y-derivative. 
+        $\text{unit} = \frac{\text{(unit of potency)}}{\text{(unit of X,Y,Z,DEPTH)}^3}$
     - `UXZ, UYZ, UZZ` : _torch.Tensor_
-        - Z-derivative. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**3
+        - Z-derivative. 
+        $\text{unit} = \frac{\text{(unit of potency)}}{\text{(unit of X,Y,Z,DEPTH)}^3}$
+    - The shape of each tensor is same as that of `X,Y,Z`.
 
 - IRET : _torch.Tensor (int)_
-    - Return code.
+    - Return code. 
+    The shape is same as that of `X,Y,Z`, i.e., IRET is returned for each station.
     - `IRET=0` means normal, `IRET=1` means singular, `IRET=2` means positive z was given.
 
 
 
-> [!NOTE]
-> `Uij` means $\frac{\partial U_i}{\partial x_j}$.
 
 
-<!-- ### Examples 
+
+### Examples 
+
+<!-- 
 
 単一観測点における変位と歪みを計算するには、次のようにします。
 
@@ -82,7 +89,7 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
 ### Inputs
 
 - `ALPHA` : _float or torch.Tensor_
-    - Medium constant. $\frac{\lambda+\mu}{\lambda+2\mu}$
+    - Medium constant, equal to $\frac{\lambda+\mu}{\lambda+2\mu}$.
 - `X, Y, Z` : _torch.Tensor_
     - Coordinate of observing point.
 - `DEPTH` : _float or torch.Tensor_
@@ -107,26 +114,36 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
 
 - U : _list of torch.Tensor_
     - If `compute_strain` is `True`, return is a list of 3 displacements and 9 spatial derivatives:
-    `[UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]`
+    `[UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]` \
     - If `False`, return is a list of 3 displacements only:
     `[UX, UY, UZ]`
 
     - `UX, UY, UZ` : _torch.Tensor_
-        - Displacement. unit = (unit of dislocation)
+        - Displacement. 
+        $\text{unit} = \text{(unit of dislocation)}$
     - `UXX, UYX, UZX` : _torch.Tensor_
-        - X-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        - X-derivative. 
+        $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y,Z,DEPTH,AL,AW)}}$
     - `UXY, UYY, UZY` : _torch.Tensor_
-        - Y-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        - Y-derivative. 
+        $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y,Z,DEPTH,AL,AW)}}$
     - `UXZ, UYZ, UZZ` : _torch.Tensor_
-        - Z-derivative. unit = (dislocation) / (unit of X,Y,Z,DEPTH,AL,AW)
+        - Z-derivative. 
+        $\text{unit} = \frac{\text{(unit of dislocation)}}{\text{(unit of X,Y,Z,DEPTH,AL,AW)}}$
+    - The shape of each tensor is same as that of `X,Y,Z`.
 
 - IRET : _torch.Tensor (int)_
-    - Return code.
+    - Return code. 
+    The shape is same as that of `X,Y,Z`, i.e., IRET is returned for each station.
     - `IRET=0` means normal, `IRET=1` means singular, `IRET=2` means positive z was given.
 
 
 
-<!-- ### Examples 
+
+### Examples 
+
+
+<!-- 
 
 単一観測点における変位と歪みを計算するには、次のようにします。
 
@@ -173,3 +190,11 @@ If you are familiar with the `dc3d0wrapper` or `dc3dwrapper` from [okada_wrapper
 
 > [!TIP]
 > This method requires the use of for-loop to obtain displacements and strains at multiple stations. Our `OkadaWrapper.compute` uses vectorization to obtain results at multiple stations without using for-loop. -->
+
+
+
+---
+
+- [Back to README.md](../README.md)
+- [Go to "How to use `SPOINT` and `SRECTF`"](./Okada1985.md)
+- [Go to "How to use `OkadaWrapper` Class"](./OkadaWrapper.md)

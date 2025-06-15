@@ -32,7 +32,7 @@ def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True):
         If `compute_strain` is `True`, 
         U is a list of 3 displacements and 6 spatial derivatives:
         [U1, U2, U3, U11, U12, U21, U22, U31, U32]
-        If `False`, return is a list of 3 displacements only:
+        If `False`, U is a list of 3 displacements only:
         [U1, U2, U3]
 
         U1, U2, U3 : torch.Tensor

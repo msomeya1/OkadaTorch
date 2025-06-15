@@ -24,7 +24,7 @@ https://doi.org/10.1785/BSSA0820021018
 
 ## Install
 
-Run
+<!-- Run
 ```
 git clone https://github.com/msomeya1/OkadaTorch.git
 cd OkadaTorch
@@ -32,7 +32,7 @@ pip install .
 ```
 
 `OkadaTorch` itself only requires `PyTorch` (which is installed in the steps above). 
-However, if you want to run the example notebooks, you need additional packages (`NumPy`, `Matplotlib`, `pyproj` and `Pyro`).
+However, if you want to run the example notebooks, you need additional packages (`NumPy`, `Matplotlib`, `pyproj` and `Pyro`). -->
 
 
 
@@ -94,3 +94,28 @@ If you want to compute displacements and strains for multiple sources, call the 
 
 [^1]: In this case, `x,y(,z)` will be 1D, 2D or 3D tensors with **same shape**. 
 Returns (displacements and strains) are also tensors of the same shape.
+
+
+
+## Remark 3: Coordinate System and Notation
+
+
+
+The coordinate system used in functions `SPOINT`, `SRECTF`, `DC3D0` and `DC3D` is defined so that 
+- the x-axis is parallel to the strike direction of the fault, 
+- the z-axis is vertically upward, 
+- and the y-axis is determined so that the entire system is right-handed.
+
+However, `OkadaWrapper` uses a Cartesian coordinate system in which east is x, north is y, and up is z.
+
+
+
+
+Also, the original FORTRAN subroutines and thier PyTorch implementations use uppercase variables (e.g., `UX`), while the OkadaWrapper uses lowercase variables (e.g., `ux`), but there is no particular difference between them (**except for the coordinate system difference noted above**). 
+For example,
+- `U1`, `UX`, and `ux` all represent the x component of the displacement.
+- `U12`, `UXY`, and `uxy` all represent the x component of the displacement differentiated by y. 
+
+> [!NOTE]
+> `Uij` or `uij` means $\frac{\partial U_i}{\partial x_j}$ or $\frac{\partial u_i}{\partial x_j}$, respectively ($i,j=x,y,z$).
+> In other words, the first index represents the component of displacement, and the second one represents which variable to differentiate.
