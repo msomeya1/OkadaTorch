@@ -1,4 +1,4 @@
-# How to use `OkadaWrapper` Class
+# class `OkadaWrapper`
 
 `OkadaWrapper` is a convenient wrapper class that can handle `SPOINT`, `SRECTF`, `DC3D0` and `DC3D` with common interface.
 It also provides functions to calculate gradient and hessian.
@@ -60,7 +60,7 @@ Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisso
 
 
 
-## `compute` method
+## `OkadaWrapper.compute`(_coords:dict, params:dict, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
 
 Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the stations are calculated.
 
@@ -149,7 +149,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 
 
-## `gradient` method
+## `OkadaWrapper.gradient`(_coords:dict, params:dict, arg:str, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
 
 Calculate gradient with respect to specified `arg` (one of coordinates or parameters) at the stations, given the source parameters.
 PyTorch's function `jacfwd` is used internally.
@@ -245,7 +245,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 
 
-## `hessian` method
+## `OkadaWrapper.hessian`(_coords:dict, params:dict, arg1:str, arg2:str, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
 
 Calculate hessian (2nd-order derivatives) with respect to specified `arg1` and `arg2` at the station, given the source parameters.
 PyTorch's function `jacfwd` is used internally.
@@ -319,5 +319,5 @@ The shape of each tensor is same as that of `x,y(,z)`.
 ---
 
 - [Back to README.md](../README.md)
-- [Go to "How to use `SPOINT` and `SRECTF`"](./Okada1985.md)
-- [Go to "How to use `DC3D0` and `DC3D`"](./Okada1992.md)
+- [Go to the document of `SPOINT` and `SRECTF`](./Okada1985.md)
+- [Go to the document of `DC3D0` and `DC3D`](./Okada1992.md)

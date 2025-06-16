@@ -71,7 +71,7 @@ This is true for both the PyTorch implementation of original subroutines (`SPOIN
 
 Strictly speaking, the functions will work if some variables are just floats.
 Variables must be passed as tensors in the following cases:
-- If you want to obtain results at multiple stations by vectorization, `x,y(,z)` must be tensors.
+- Coordinate variables (`x,y(,z)`)
 - Angle variables (`strike`, `dip`, and `rake`): when their sine and cosine are calculated internally, functions such as `torch.deg2rad`, `torch.sin`, `torch.cos` are used. These functions require that the argument be tensors.
 - In case you want to differentiate the output by that variable. For example, if you want to differentiate by `depth`, you need to write `depth = torch.tensor(1.0, requires_grad=True)`. If you simply declare it as a float (e.g., `depth = 1.0`), the output is not differentiable with respect to `depth`.
 
