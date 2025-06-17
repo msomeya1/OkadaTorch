@@ -139,12 +139,16 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 ### Examples
 
-<!-- 単一観測点における変位と歪みを計算するには、次のようにします。
-
-
-複数観測点における変位と歪みを計算する場合には、xとyを1次元または2次元のテンソルにするだけです。もちろん、xとyのdimとshapeは一致していなければなりません。 -->
+> [!NOTE]
+> We have prepared notebooks to run the following Python code:
+[2D version](../notebooks/3_OkadaWrapper_2D.ipynb) and [3D version](../notebooks/4_OkadaWrapper_3D.ipynb).
     
+<!-- info:
+source parameters were taken from the model 10 of Table S1 in Baba et al. 2021.
 
+- Baba, T., Chikasada, N., Imai, K., Tanioka, Y., & Kodaira, S., 2021. 
+Frequency dispersion amplifies tsunamis caused by outer-rise normal faults, Scientific Reports, 11(1), 20064, 
+doi: https://doi.org/10.1038/s41598-021-99536-x. -->
 
 
 
@@ -166,7 +170,6 @@ If `"x", "y" (, "z")` is specified as `arg` (i.e., what is allowed as a key in t
 If the component of `u` is displacement, the strain will be output. 
 Since this is provided in the original Okada's formula, it is redundant to compute the strains with AD (simply using `compute` method is faster).
 Note that it has been verified that the error is sufficiently small when the strain is calculated by the two methods. 
-(See the corresponding Jupyter notebook.) 
 If the component of `u` is strain, it means that it is the second-order spatial derivative of the displacement, which cannot be computed with the original Okada's formula, so there is an advantage to computing it with AD.
 
 
@@ -232,7 +235,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 > `OkadaWrapper` can be used to find fault parameters that minimize a certain loss function (written in PyTorch function).
 > In this case, the gradient value could be obtained explicitly by the `gradient` method and passed to the optimizer, but this would be redundant.
 > Instead, it is easier to define a loss function, specify the parameters to be optimized, and then use `loss.backward()`.
-> See the corresponding Jupyter notebook for more information on this.
+> See the corresponding [notebook](../notebooks/5_OkadaWrapper_loss.ipynb) for more information on this.
 
 
 

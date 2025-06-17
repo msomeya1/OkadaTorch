@@ -54,6 +54,11 @@ The shape of each tensor is same as that of `X,Y`.
 
 ## Examples
 
+
+> [!NOTE]
+> We have prepared a [notebook](../notebooks/1_SPOINT_SRECTF.ipynb) to run the following Python code.
+
+
 First, load the necessary libraries.
 
 ```python
@@ -205,6 +210,9 @@ The shape of each tensor is same as that of `X,Y`.
 
 
 ## Examples
+
+> [!NOTE]
+> We have prepared a [notebook](../notebooks/1_SPOINT_SRECTF.ipynb) to run the following Python code.
 
 ```python
 import numpy as np
