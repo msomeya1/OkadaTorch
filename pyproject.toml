@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OkadaTorch"
+version = "0.1.0"
 description = "PyTorch implementation of Okada's formula "
 readme = "README.md"
 dependencies = [
