@@ -36,14 +36,6 @@ cd OkadaTorch
 pip install .
 ```
 
-`OkadaTorch` itself only requires `PyTorch` (which is installed in the steps above). 
-However, if you want to run the example notebooks, you need additional packages (`NumPy`, `Matplotlib`, `seaborn`, `pyproj` and `Pyro`). 
-In that case, do 
-```shell
-pip install .[notebooks]
-```
-instead of `pip install .`.
-
 
 
 ## Usage
