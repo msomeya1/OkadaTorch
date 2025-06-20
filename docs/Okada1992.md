@@ -61,7 +61,7 @@ Calculate displacement and strain at depth due to buried point source in a semii
 ## Examples 
 
 > [!NOTE]
-> We have prepared a [notebook](../notebooks/2_DC3D0_DC3D.ipynb) to run the following Python code.
+> We have prepared a [notebook](../2_DC3D0_DC3D.ipynb) to run the following Python code.
 
 
 First, load the necessary libraries.
@@ -239,7 +239,7 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
 ## Examples 
 
 > [!NOTE]
-> We have prepared a [notebook](../notebooks/2_DC3D0_DC3D.ipynb) to run the following Python code.
+> We have prepared a [notebook](../2_DC3D0_DC3D.ipynb) to run the following Python code.
 
 
 ```python

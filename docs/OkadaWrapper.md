@@ -141,7 +141,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 > [!NOTE]
 > We have prepared notebooks to run the following Python code:
-[2D version](../notebooks/3_OkadaWrapper_2D.ipynb) and [3D version](../notebooks/4_OkadaWrapper_3D.ipynb).
+[2D version](../3_OkadaWrapper_2D.ipynb) and [3D version](../4_OkadaWrapper_3D.ipynb).
     
 <!-- info:
 source parameters were taken from the model 10 of Table S1 in Baba et al. 2021.
@@ -235,7 +235,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 > `OkadaWrapper` can be used to find fault parameters that minimize a certain loss function (written in PyTorch function).
 > In this case, the gradient value could be obtained explicitly by the `gradient` method and passed to the optimizer, but this would be redundant.
 > Instead, it is easier to define a loss function, specify the parameters to be optimized, and then use `loss.backward()`.
-> See the corresponding [notebook](../notebooks/5_OkadaWrapper_loss.ipynb) for more information on this.
+> See the corresponding [notebook](../6_OkadaWrapper_optimization.ipynb) for more information on this.
 
 
 
