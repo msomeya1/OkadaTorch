@@ -139,16 +139,14 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 ### Examples
 
-> [!NOTE]
-> We have prepared notebooks to run the following Python code:
-[2D version](../3_OkadaWrapper_2D.ipynb) and [3D version](../4_OkadaWrapper_3D.ipynb).
-    
-<!-- info:
-source parameters were taken from the model 10 of Table S1 in Baba et al. 2021.
+We have prepared a [notebook](../3_OkadaWrapper_compute.ipynb) to test the `compute` method.
 
-- Baba, T., Chikasada, N., Imai, K., Tanioka, Y., & Kodaira, S., 2021. 
+
+> [!NOTE]
+> Source parameters used in the notebooks were taken from the model 10 of Table S1 in Baba et al. 2021.
+> - Baba, T., Chikasada, N., Imai, K., Tanioka, Y., & Kodaira, S., 2021. 
 Frequency dispersion amplifies tsunamis caused by outer-rise normal faults, Scientific Reports, 11(1), 20064, 
-doi: https://doi.org/10.1038/s41598-021-99536-x. -->
+doi: https://doi.org/10.1038/s41598-021-99536-x.
 
 
 
@@ -235,7 +233,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 > `OkadaWrapper` can be used to find fault parameters that minimize a certain loss function (written in PyTorch function).
 > In this case, the gradient value could be obtained explicitly by the `gradient` method and passed to the optimizer, but this would be redundant.
 > Instead, it is easier to define a loss function, specify the parameters to be optimized, and then use `loss.backward()`.
-> See the corresponding [notebook](../6_OkadaWrapper_optimization.ipynb) for more information on this.
+> See the corresponding [notebook](../6_OkadaWrapper_optimization.ipynb) for the example.
 
 
 
@@ -243,7 +241,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 ### Examples
 
 
-
+We have prepared a [notebook](../4_OkadaWrapper_gradient.ipynb) to test the `gradient` method.
 
 
 
@@ -315,6 +313,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 ### Examples
 
 
+We have prepared a [notebook](../5_OkadaWrapper_hessian.ipynb) to test the `hessian` method.
 
 
 
