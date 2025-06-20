@@ -3,7 +3,7 @@
 `OkadaTorch` provides PyTorch implementations of FORTRAN subroutines that calculate displacements and strains (spatial derivative of displacements) due to a point source or a rectangular fault (Okada 1985, 1992).
 
 **Features**
-- **The whole code is differentiable**: the gradient with respect to the input can be easily computed using reverse-mode automatic differentiation (AD), allowing for flexible gradient-based optimization.
+- **The whole code is differentiable**: the gradient with respect to the input can be easily computed using automatic differentiation (AD), allowing for flexible gradient-based optimization.
 - **No for-loop over observation stations**: vectorization allows rapid calculation for multiple stations.
 - **Easily combined with other models written in PyTorch**.
 
@@ -14,7 +14,12 @@
 https://doi.org/10.1785/BSSA0750041135
 - Okada, Y. (1992). Internal deformation due to shear and tensile faults in a half-space. Bulletin of the seismological society of America, 82(2), 1018-1040.
 https://doi.org/10.1785/BSSA0820021018
-- [Program to calculate deformation due to a fault model DC3D0 / DC3D](https://www.bosai.go.jp/information/dc3d_e.html). 
+- [Program to calculate deformation due to a fault model DC3D0 / DC3D](https://www.bosai.go.jp/information/dc3d_e.html) (NIED website) 
+
+
+<!-- Programs published in this repository are different from the original programs published on the NIED website.
+I have obtained permission from NIED to let these programs available here. -->
+
 
 
 
@@ -24,16 +29,20 @@ https://doi.org/10.1785/BSSA0820021018
 
 ## Install
 
-<!-- Run
-```
+Run
+```shell
 git clone https://github.com/msomeya1/OkadaTorch.git
 cd OkadaTorch
 pip install .
 ```
 
 `OkadaTorch` itself only requires `PyTorch` (which is installed in the steps above). 
-However, if you want to run the example notebooks, you need additional packages (`NumPy`, `Matplotlib`, `pyproj` and `Pyro`). -->
-
+However, if you want to run the example notebooks, you need additional packages (`NumPy`, `Matplotlib`, `seaborn`, `pyproj` and `Pyro`). 
+In that case, do 
+```shell
+pip install .[notebooks]
+```
+instead of `pip install .`.
 
 
 
@@ -62,6 +71,8 @@ Its usage can be found in [docs/OkadaWrapper.md](docs/OkadaWrapper.md).
 
 
 
+If you find any bugs while using these programs, please let us know.
+
 ## Remark 1: Tensors
 
 **In `OkadaTorch`, almost all variables must be treated as `torch.Tensor`.**
@@ -85,7 +96,7 @@ However, if you find it bothering to mix tensors and floats, it would be a good 
 
 Vectorization is performed only over stations and not over source parameters. 
 This means
-- displacements and strains at multiple stations can be obtained in batches[^1],
+- displacements and strains at multiple stations can be obtained in batches [^1],
 - but displacements and strains for multiple sources cannot be obtained in batches (only source parameters of a single source are acceptable).
 
 This is due to technical reasons and we apologize for inconveniences.
@@ -119,3 +130,11 @@ For example,
 > [!NOTE]
 > `Uij` or `uij` means $\frac{\partial U_i}{\partial x_j}$ or $\frac{\partial u_i}{\partial x_j}$, respectively ($i,j=x,y,z$).
 > In other words, the first index represents the component of displacement, and the second one represents which variable to differentiate.
+
+
+## Hint
+
+[`torch.compile`](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) is a useful feature that has the potential to speed up calculations by simply decorating a function.
+Consider using it if you are dissatisfied with calculation speed.
+
+(However, no significant difference was observed as far as the author has tried.)

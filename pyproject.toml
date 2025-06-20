@@ -10,3 +10,12 @@ readme = "README.md"
 dependencies = [
     "torch"
 ]
+
+[project.optional-dependencies]
+notebooks = [
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "pyproj",
+    "pyro-ppl"
+]
