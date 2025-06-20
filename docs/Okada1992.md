@@ -448,7 +448,6 @@ def test_dc3d():
     cbar.locator = tick_locator
     cbar.update_ticks()
     cbar.set_label(r'$u_{\mathrm{x}}$')
-    savefig("strike_slip.png")
     show()
 
 
