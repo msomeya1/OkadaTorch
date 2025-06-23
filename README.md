@@ -49,8 +49,8 @@ Okada (1985, 1992) provides four subroutines:
 
 ||At Surface (Okada 1985)|Under Surface (Okada 1992)|
 |-|-|-|
-|Point Source|`SPOINT`|`SRECTF`|
-|Rectangular Fault|`DC3D0`|`DC3D`|
+|Point Source|`SPOINT`|`DC3D0`|
+|Rectangular Fault|`SRECTF`|`DC3D`|
 
 
 We have ported all of these subroutines into PyTorch.
