@@ -17,13 +17,13 @@ https://doi.org/10.1785/BSSA0820021018
 - [Program to calculate deformation due to a fault model DC3D0 / DC3D](https://www.bosai.go.jp/information/dc3d_e.html) (NIED website) 
 
 
-<!-- Programs published in this repository are different from the original programs published on the NIED website.
-I have obtained permission from NIED to let these programs available here. -->
+Programs published in this repository are different from the original programs published in the NIED website.
+The author have obtained permission from NIED to publish these programs here.
 
 
 
 
-
+<!-- TODO:プレプリントへのリンク -->
 
 
 
