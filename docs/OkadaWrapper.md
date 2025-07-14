@@ -8,7 +8,7 @@ It also provides functions to calculate gradient and hessian.
 
 
 The `OkadaWrapper` class has three methods (`compute`, `gradient`, and `hessian`). 
-Here, their common arguments, `coords`, `params`, `compute_strain`, `is_degree`, and `nu`, are explained first.
+Here, their common arguments, `coords`, `params`, `compute_strain`, `is_degree`, `fault_origin` and `nu`, are explained first.
 
 
 ### `coords`
@@ -22,17 +22,17 @@ In this coordinate system, x is east, y is north, and z is upward. Note that the
 ### `params`
 
 `params` is also a Python dictionary that stores the values of source parameters.
-Allowed keys are `"x_ref"`, `"y_ref"`, `"depth"`, `"length"`, `"width"`, `"strike"`, `"dip"`, `"rake"`, `"slip"`.
+Allowed keys are `"x_fault"`, `"y_fault"`, `"depth"`, `"length"`, `"width"`, `"strike"`, `"dip"`, `"rake"`, `"slip"`.
 The explanation of each key is as follows.
 
-- `x_ref, y_ref`: x, y coordinates of the source. 
-For a point source, these are the coordinates of the point.
-For a rectangular fault, these are the coordinates of the top left corner of the rectangle (often refered as "reference point"), not the center of the rectangle.
-- `depth`: Depth of the source ($>0$). 
-For a point source, this is the depth of the point.
-For a rectangular fault, this is the coordinate of the reference point.
-- `length, width`: These parameters are specific to a rectangular fault.
+- `x_fault, y_fault, depth`: x, y coordinates and depth of the source (depth is positive).
+In the case of a point source, these values of course represent the location of that point.
+In the case of a rectangular fault, the flag `fault_origin` specifies which point these values represent.
+If `fault_origin` is `"topleft"`, then `x_fault`, `y_fault` and `depth` represent the coordinates of the top left corner of the rectangle.
+If `fault_origin` is `"center"`, then `x_fault`, `y_fault` and `depth` represent the coordinates of the rectangle's center.
+- `length, width`: These parameters are specific to a rectangular fault. `length` corresponds to the strike direction and `width` to the dip direction.
 - `strike, dip, rake`: If `is_degree` is `True`, these variables are measured in degrees. If `False`, in radians. 
+Note that `strike` is measured clockwise from the north and the fault is assumed to dip to the right hand side as viewed from the strike direction. 
 - `slip`: This name can be misleading. 
 For a rectangular fault, this indicates the amount of slip, as the name implies.
 For a point source, this indicates the potency (which is equal to seismic moment divided by the elastic constant, also equal to slip amount multiplied by the infinitesimal area of the fault). 
@@ -50,6 +50,14 @@ In this cace, intermediate variables that are only used to compute strain are no
 If `True` (default),  `"strike"`, `"dip"` and `"rake"` are in degrees. If `False`, in radians. 
 
 
+### `fault_origin`
+In the case of a rectangular fault, this flag specifies which point the fault location parameter refers to (ignored for a point source).
+- If `fault_origin` is `"topleft"`, then `"x_fault"`, `"y_fault"` and `"depth"` in `params` represent the coordinates of the top left corner of the rectangle.
+- If `fault_origin` is `"center"`, then `"x_fault"`, `"y_fault"` and `"depth"` in `params` represent the coordinates of the rectangle's center.
+
+Other strings cannot be specified. 
+
+
 ### `nu`
 Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisson medium.
 
@@ -60,7 +68,7 @@ Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisso
 
 
 
-## `OkadaWrapper.compute`(_coords:dict, params:dict, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
+## `OkadaWrapper.compute`(_coords:dict, params:dict, compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25_)
 
 Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the stations are calculated.
 
@@ -75,7 +83,7 @@ If you have multiple sources, you need to call this method multiple times.
     Each value must be torch.Tensor of the same shape (`dim` is arbitrary).
 
 - `params` : _dict of torch.Tensor_
-    - `"x_ref"`, `"y_ref"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys, and `"length"` and `"width"` are optional (all other keys are ignored).
+    - `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys, and `"length"` and `"width"` are optional (all other keys are ignored).
     Each value must be torch.Tensor with dim=0 (scaler tensor).
 
 - `compute_strain` : _bool, dafault True_
@@ -83,6 +91,9 @@ If you have multiple sources, you need to call this method multiple times.
 
 - `is_degree` : _bool, dafault True_
     - Flag if `"strike"`, `"dip"` and `"rake"` are in degree or not (= in radian). 
+
+- `fault_origin` : _str, default "topleft"_
+    - Flag if `"x_fault"`, `"y_fault"` and `"depth"` represent the location of top left corner of the rectangle or the center.
 
 - `nu` : _float, default 0.25_
     - Poisson's ratio.
@@ -119,10 +130,10 @@ The shape of each tensor is same as that of `x,y(,z)`.
 
 > [!IMPORTANT]
 > In the `compute` method (and of cource, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
-> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `SPOINT` is called.
-> - if `x, y ∈ coords` but `z ∉ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `SRECTF` is called.
-> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
-> - if `x, y, z ∈ coords`, and `x_ref, y_ref, depth, length, width, strike, dip, rake, slip ∈ params`, then `DC3D` is called.
+> - if `x, y ∈ coords` but `z ∉ coords`, and `x_fault, y_fault, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `SPOINT` is called.
+> - if `x, y ∈ coords` but `z ∉ coords`, and `x_fault, y_fault, depth, length, width, strike, dip, rake, slip ∈ params`, then `SRECTF` is called.
+> - if `x, y, z ∈ coords`, and `x_fault, y_fault, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
+> - if `x, y, z ∈ coords`, and `x_fault, y_fault, depth, length, width, strike, dip, rake, slip ∈ params`, then `DC3D` is called.
 >
 > If the required keys are missing, an error is raised. If unnecessary keys are included, they are ignored.
 
@@ -151,7 +162,7 @@ doi: https://doi.org/10.1038/s41598-021-99536-x.
 
 
 
-## `OkadaWrapper.gradient`(_coords:dict, params:dict, arg:str, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
+## `OkadaWrapper.gradient`(_coords:dict, params:dict, arg:str, compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25_)
 
 Calculate gradient with respect to specified `arg` (one of coordinates or parameters) at the stations, given the source parameters.
 PyTorch's function `jacfwd` is used internally.
@@ -171,7 +182,7 @@ Note that it has been verified that the error is sufficiently small when the str
 If the component of `u` is strain, it means that it is the second-order spatial derivative of the displacement, which cannot be computed with the original Okada's formula, so there is an advantage to computing it with AD.
 
 
-If `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg` (i.e., what is allowed as a key in the `params`), the derivative of `u` with respect to parameters is calculated. 
+If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg` (i.e., what is allowed as a key in the `params`), the derivative of `u` with respect to parameters is calculated. 
 These are not provided in the original Okada's formula. 
 You can implement the derivatives with respect to the parameters by calculating them manually, but this is very time-consuming and may produce errors, so using AD is a better choice.
 
@@ -188,7 +199,7 @@ You can implement the derivatives with respect to the parameters by calculating 
 - `params` : _dict of torch.Tensor_
     - same as that of `compute` method. 
 
-- `arg` : _char_
+- `arg` : _str_
     - Name of the variable to be differentiated. 
     This should be a key of `coords` or `params`; 
     if there is no `"z"` in `coords`, you cannot specify `"z"` as `arg`.
@@ -199,6 +210,9 @@ You can implement the derivatives with respect to the parameters by calculating 
 
 - `is_degree` : _bool, dafault True_
     - same as that of `compute` method. 
+
+- `fault_origin` : _str, default "topleft"_
+    - Flag if `"x_fault"`, `"y_fault"` and `"depth"` represent the location of top left corner of the rectangle or the center.
 
 - `nu` : _float, default 0.25_
     - same as that of `compute` method. 
@@ -246,7 +260,7 @@ We have prepared a [notebook](../4_OkadaWrapper_gradient.ipynb) to test the `gra
 
 
 
-## `OkadaWrapper.hessian`(_coords:dict, params:dict, arg1:str, arg2:str, compute_strain:bool=True, is_degree:bool=True, nu:float=0.25_)
+## `OkadaWrapper.hessian`(_coords:dict, params:dict, arg1:str, arg2:str, compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25_)
 
 Calculate hessian (2nd-order derivatives) with respect to specified `arg1` and `arg2` at the station, given the source parameters.
 PyTorch's function `jacfwd` is used internally.
@@ -256,7 +270,7 @@ Theoretically, it is possible to differentiate `u` once by a spatial variable an
 
 If `"x", "y" (, "z")` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `coords`), the second-order spatial derivative of `u` is calculated. 
 
-If `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `params`), the second-order derivative of `u` with respect to parameters is calculated. 
+If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `params`), the second-order derivative of `u` with respect to parameters is calculated. 
 
 
 
@@ -269,7 +283,7 @@ If `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip
 - `params` : _dict of torch.Tensor_
     - same as that of `compute` method. 
 
-- `arg1, arg2` : _char_
+- `arg1, arg2` : _str_
     - Name of the variable to be differentiated. 
     This should be a key of `coords` or `params`;
     if there is no `"z"` in `coords`, you cannot specify `"z"` as `arg1` or `arg2`.
@@ -282,6 +296,9 @@ If `"x_ref", "y_ref", "depth", "length", "width", "strike", "dip", "rake", "slip
 - `is_degree` : _bool, dafault True_
     - same as that of `compute` method. 
 
+- `fault_origin` : _str, default "topleft"_
+    - Flag if `"x_fault"`, `"y_fault"` and `"depth"` represent the location of top left corner of the rectangle or the center.
+    
 - `nu` : _float, default 0.25_
     - same as that of `compute` method. 
 
