@@ -127,15 +127,17 @@ For example,
 ## Hint
 
 [`torch.compile`](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) is a useful feature that has the potential to speed up calculations by simply wrapping a function.
-For example, simply changing 
+Let's consider the following code snippets as an example.
 ```python
+okada = OkadaWrapper()
 out = okada.compute(coords, params) 
 ```
-to 
+If you rewrite it like this, 
 ```python
+okada = OkadaWrapper()
 compute_compiled = torch.compile(okada.compute) 
 out = compute_compiled(coords, params) 
 ```
-would speed up the forward calculation.
+you can expect it to be faster.
  
 However, as far as the author has tried, this seems to work only for `okada.compute`, and it had little effect on `okada.gradiet`, etc.
