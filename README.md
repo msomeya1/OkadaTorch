@@ -126,7 +126,16 @@ For example,
 
 ## Hint
 
-[`torch.compile`](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) is a useful feature that has the potential to speed up calculations by simply decorating a function.
-Consider using it if you are dissatisfied with calculation speed.
-
-(However, no significant difference was observed as far as the author has tried.)
+[`torch.compile`](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) is a useful feature that has the potential to speed up calculations by simply wrapping a function.
+For example, simply changing 
+```python
+out = okada.compute(coords, params) 
+```
+to 
+```python
+compute_compiled = torch.compile(okada.compute) 
+out = compute_compiled(coords, params) 
+```
+would speed up the forward calculation.
+ 
+However, as far as the author has tried, this seems to work only for `okada.compute`, and it had little effect on `okada.gradiet`, etc.

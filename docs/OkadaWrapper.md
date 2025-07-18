@@ -4,6 +4,43 @@
 It also provides functions to calculate gradient and hessian.
 
 
+
+✅ Quick Summary
+
+| Method   | Input                    | Output                              |
+| -------- | ------------------------ | ----------------------------------- |
+| compute  | coords + params          | \[ux, uy, uz, ...] or \[ux, uy, uz] |
+| gradient | coords + params + arg    | ∂output / ∂arg                      |
+| hessian  | coords + params + arg1/2 | ∂²output / ∂arg1∂arg2               |
+
+
+```python
+coords = {
+    "x": X,
+    "y": Y,
+    "z": Z
+}
+params = {
+    "x_fault": x_fault,
+    "y_fault": y_fault,
+    "depth": depth,
+    "length": length,
+    "width": width,
+    "strike": strike,
+    "dip": dip,
+    "rake": rake,
+    "slip": slip
+}
+
+okada = OkadaWrapper()
+
+out = okada.compute(coords, params)
+grad = okada.gradient(coords, params, arg="depth")
+hess = okada.hessian(coords, params, arg1="depth", arg2="dip")
+```
+
+
+
 ## Introduction
 
 
@@ -129,7 +166,7 @@ The shape of each tensor is same as that of `x,y(,z)`.
 <!-- outputの単位については、呼び出されているそれぞれの関数の説明を見てください。 -->
 
 > [!IMPORTANT]
-> In the `compute` method (and of cource, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
+> In the `compute` method (and of course, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
 > - if `x, y ∈ coords` but `z ∉ coords`, and `x_fault, y_fault, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `SPOINT` is called.
 > - if `x, y ∈ coords` but `z ∉ coords`, and `x_fault, y_fault, depth, length, width, strike, dip, rake, slip ∈ params`, then `SRECTF` is called.
 > - if `x, y, z ∈ coords`, and `x_fault, y_fault, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
