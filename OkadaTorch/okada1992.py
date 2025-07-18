@@ -28,10 +28,10 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
         potency = (moment of double-couple)/myu for POT1,2
         potency = (intensity of isotropic part)/lambda for POT3
         potency = (intensity of linear dipole)/myu for POT4
-    compute_strain : bool, dafault True
+    compute_strain : bool, default True
         Option to calculate the spatial derivative of the displacement. 
         New in the PyTorch implementation.
-    is_degree : bool, dafault True
+    is_degree : bool, default True
         Flag if `DIP` is in degree or not (= in radian). 
         New in the PyTorch implementation.
 
@@ -152,10 +152,10 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         Fault width range.
     DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip-, tensile-dislocations.
-    compute_strain : bool, dafault True
+    compute_strain : bool, default True
         Option to calculate the spatial derivative of the displacement.
         New in the PyTorch implementation.
-    is_degree : bool, dafault True
+    is_degree : bool, default True
         Flag if `DIP` is in degree or not (= in radian). 
         New in the PyTorch implementation.
 

@@ -22,7 +22,7 @@ def SPOINT(ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True):
         (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
     DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip- and tensile-dislocation.
-    compute_strain : bool, dafault True
+    compute_strain : bool, default True
         Option to calculate the spatial derivative of the displacement. 
         New in the PyTorch implementation.
 
@@ -181,7 +181,7 @@ def SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain=T
         (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
     DISL1, DISL2, DISL3 : float or torch.Tensor
         Strike-, dip- and tensile-dislocation.
-    compute_strain : bool, dafault True
+    compute_strain : bool, default True
         Option to calculate the spatial derivative of the displacement. 
         New in the PyTorch implementation.
 

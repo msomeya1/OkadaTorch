@@ -40,10 +40,10 @@ class OkadaWrapper:
             are optional (all other keys are ignored).
             Each value must be torch.Tensor with dim=0 (scaler tensor).
 
-        compute_strain : bool, dafault True
+        compute_strain : bool, default True
             Option to calculate the spatial derivative of the displacement.
 
-        is_degree : bool, dafault True
+        is_degree : bool, default True
             Flag if `"strike"`, `"dip"` and `"rake"`
             are in degree or not (= in radian). 
         
@@ -205,10 +205,10 @@ class OkadaWrapper:
             Name of the variable to be differentiated. 
             This should be a key of `coords` or `params`.
 
-        compute_strain : bool, dafault True
+        compute_strain : bool, default True
             Option to calculate the spatial derivative of the displacement.
 
-        is_degree : bool, dafault True
+        is_degree : bool, default True
             Flag if `"strike"`, `"dip"` and `"rake"` 
             are in degree or not (= in radian). 
 
@@ -321,10 +321,10 @@ class OkadaWrapper:
             Both `arg1` and `arg2` must be variables of the same kind; 
             both must be `coords` or both must be `params`.
 
-        compute_strain : bool, dafault True
+        compute_strain : bool, default True
             Option to calculate the spatial derivative of the displacement.
 
-        is_degree : bool, dafault True
+        is_degree : bool, default True
             Flag if `"strike"`, `"dip"` and `"rake"`
             are in degree or not (= in radian). 
 

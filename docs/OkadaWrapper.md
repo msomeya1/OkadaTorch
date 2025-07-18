@@ -43,7 +43,7 @@ For ease of implementation, they are treated under the same name `slip`.
 The original FORTRAN subroutine computes both displacements and strains, but in some cases displacement alone may be sufficient. 
 If `compute_strain` is `True` (default), both displacements and strains are computed.
 If `False`, only the displacement is computed.
-In this cace, intermediate variables that are only used to compute strain are not assigned, thus reducing computational cost.
+In this case, intermediate variables that are only used to compute strain are not assigned, thus reducing computational cost.
 
 
 ### `is_degree`
@@ -86,10 +86,10 @@ If you have multiple sources, you need to call this method multiple times.
     - `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys, and `"length"` and `"width"` are optional (all other keys are ignored).
     Each value must be torch.Tensor with dim=0 (scaler tensor).
 
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement.
 
-- `is_degree` : _bool, dafault True_
+- `is_degree` : _bool, default True_
     - Flag if `"strike"`, `"dip"` and `"rake"` are in degree or not (= in radian). 
 
 - `fault_origin` : _str, default "topleft"_
@@ -205,10 +205,10 @@ You can implement the derivatives with respect to the parameters by calculating 
     if there is no `"z"` in `coords`, you cannot specify `"z"` as `arg`.
     Similarly, if there is no `"length"` or `"width"` in `params`, you cannot specify `"length"` or `"width"` as `arg`. 
 
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - same as that of `compute` method. 
 
-- `is_degree` : _bool, dafault True_
+- `is_degree` : _bool, default True_
     - same as that of `compute` method. 
 
 - `fault_origin` : _str, default "topleft"_
@@ -290,10 +290,10 @@ If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "
     Similarly, if there is no `"length"` or `"width"` in `params`, you cannot specify `"length"` or `"width"` as `arg1` or `arg2`. 
     
 
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - same as that of `compute` method. 
 
-- `is_degree` : _bool, dafault True_
+- `is_degree` : _bool, default True_
     - same as that of `compute` method. 
 
 - `fault_origin` : _str, default "topleft"_

@@ -16,7 +16,7 @@ Calculate surface displacement, strain, tilt due to buried point source in a sem
     (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
 - `DISL1, DISL2, DISL3` : _float or torch.Tensor_
     - Strike-, dip- and tensile-dislocation.
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
 
@@ -183,7 +183,7 @@ Calculate surface displacements, strains and tilts due to rectangular fault in a
     (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
 - `DISL1, DISL2, DISL3` : _float or torch.Tensor_
     - Strike-, dip- and tensile-dislocation.
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
 

@@ -18,10 +18,10 @@ Calculate displacement and strain at depth due to buried point source in a semii
     - $\text{potency} = \frac{\text{(moment of double-couple)}}{\mu}$ for `POT1`, `POT2`.
     - $\text{potency} = \frac{\text{(intensity of isotropic part)}}{\lambda}$ for `POT3`.
     - $\text{potency} = \frac{\text{(intensity of linear dipole)}}{\mu}$ for `POT4`.
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
-- `is_degree` : _bool, dafault True_
+- `is_degree` : _bool, default True_
     - Flag if `DIP` is in degree or not (= in radian). 
     New in the PyTorch implementation.
 
@@ -199,10 +199,10 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
     - Fault width range.
 - `DISL1, DISL2, DISL3` : _float or torch.Tensor_
     - Strike-, dip-, tensile-dislocations.
-- `compute_strain` : _bool, dafault True_
+- `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement.
     New in the PyTorch implementation.
-- `is_degree` : _bool, dafault True_
+- `is_degree` : _bool, default True_
     - Flag if `DIP` is in degree or not (= in radian). 
     New in the PyTorch implementation.
 
