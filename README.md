@@ -36,6 +36,10 @@ cd OkadaTorch
 pip install .
 ```
 
+This will install PyTorch and other dependencies.
+
+The PyTorch versions that have been confirmed to work are 2.5.1 and 2.6.0 (both CPU versions)
+
 
 
 ## Usage
