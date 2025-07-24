@@ -23,7 +23,8 @@ The author have obtained permission from NIED to publish these programs here.
 
 
 
-<!-- TODO:プレプリントへのリンク -->
+If you use `OkadaTorch` in your study, please consider citing the following preprints.
+- Masayoshi Someya, Taisuke Yamada, Tomohisa Okazaki. OkadaTorch: A Differentiable Programming of Okada Model to Calculate Displacements and Strains from Fault Parameters, arXiv preprint (2025). https://arxiv.org/abs/2507.17126
 
 
 
