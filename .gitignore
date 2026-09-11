@@ -1,2 +1,9 @@
 *.pyc
 *.png
+__pycache__/
+*.egg-info/
+.pytest_cache/
+tests/fortran/
+
+# notebook 6 writes these with np.savetxt; they are outputs, not inputs
+*_obs.txt

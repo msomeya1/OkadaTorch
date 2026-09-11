@@ -1,6 +1,6 @@
 import torch
 
-EPS = 1.0e-6
+from .utils import EPS_DIP, _surrogate_grad
 
 def setup(strike, dip, rake, slip, is_degree):
     """
@@ -23,10 +23,13 @@ def setup(strike, dip, rake, slip, is_degree):
         u_dip     = slip * torch.sin(rake)
 
 
-    # if dip≈±90° then set sd=sign(sd) and cd=0.
-    if torch.abs(cd) < EPS:
-        sd = torch.sign(sd)
-        cd = 0.0
+    # Snap a near-vertical dip, as `medium_constants` does.  torch.where rather
+    # than a Python `if`, which would reject a batched dip, break under vmap and
+    # force a torch.compile graph break; and on the value only, so d/d(dip)
+    # survives.
+    vertical = torch.abs(cd) < EPS_DIP
+    sd = _surrogate_grad(vertical, torch.where(vertical, torch.sign(sd), sd), sd)
+    cd = _surrogate_grad(vertical, torch.where(vertical, torch.zeros_like(cd), cd), cd)
 
 
     return [ss, cs, sd, cd, u_strike, u_dip]

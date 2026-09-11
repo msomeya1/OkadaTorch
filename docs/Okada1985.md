@@ -1,4 +1,4 @@
-# `SPOINT`(_ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True_)
+# `SPOINT`(_ALP, X, Y, D, SD, CD, DISL1, DISL2, DISL3, compute_strain=True, return_iret=False_)
 
 Calculate surface displacement, strain, tilt due to buried point source in a semiinfinite medium.
 
@@ -19,6 +19,9 @@ Calculate surface displacement, strain, tilt due to buried point source in a sem
 - `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
+- `return_iret` : _bool, default False_
+    - Return the singularity flag. New in the PyTorch implementation.
+
 
 ## Outputs
 
@@ -165,7 +168,7 @@ ux = out[0].detach().numpy()
 
 
     
-# `SRECTF`(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain=True)
+# `SRECTF`(_ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain=True, return_iret=False_)
 Calculate surface displacements, strains and tilts due to rectangular fault in a half-space.
 
 ## Inputs
@@ -179,14 +182,17 @@ Calculate surface displacements, strains and tilts due to rectangular fault in a
 - `AL, AW` : _float or torch.Tensor_
     - Length and width of fault.
 - `SD, CD` : _float or torch.Tensor_
-    - Sin, Cosine of dip-angle. 
+    - Sine, cosine of dip-angle. 
     (CD=0.0, SD=+/-1.0 should be given for vertical fault.)
 - `DISL1, DISL2, DISL3` : _float or torch.Tensor_
     - Strike-, dip- and tensile-dislocation.
 - `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement. 
     New in the PyTorch implementation.
+- `return_iret` : _bool, default False_
+    - Return the singularity flag. New in the PyTorch implementation.
 
+    
 ## Outputs
 
 If `compute_strain` is `True`, return is a list of 3 displacements and 6 spatial derivatives: \
@@ -306,6 +312,23 @@ out = SRECTF(ALP, X, Y, DEP, AL, AW, SD, CD, DISL1, DISL2, DISL3, compute_strain
 
 
 
+# Return codes
+
+The original `SPOINT` and `SRECTF` have no return code and produce NaN at a
+singular station; one that coincides with the point source, or lies on an edge
+of the rectangle. Our implementation applies the same test that `DC3D` uses,
+returns exactly zero there, and can report it:
+
+```python
+U, IRET = SRECTF(..., return_iret=True)
+```
+
+`IRET = 1` marks a singular station, `0` a normal one. `return_iret` defaults to
+`False`, so the call signature is unchanged for existing code.
+
+This makes the 1985 and 1992 formulations agree on which stations are usable: a
+fault reaching the surface behaves identically whether you evaluate it through
+`SRECTF` or through `DC3D` with `z = 0`.
 
 
 ---

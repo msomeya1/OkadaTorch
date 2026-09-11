@@ -1,0 +1,48 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:        # lets you start a run by hand from the Actions tab
+
+concurrency:                # a new push cancels the run still going for the old one
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false      # report every version, not just the first to break
+      matrix:
+        # The floor declared in pyproject.toml and a current release.  Testing
+        # the floor is the only thing that keeps `requires-python` honest.
+        python-version: ["3.9", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install PyTorch (CPU build)
+        # The default wheel pulls in the whole CUDA stack, which is ~2.5 GB and
+        # useless on a runner with no GPU.
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install OkadaTorch
+        # A clean install driven only by pyproject.toml: this is what catches a
+        # dependency that happens to be present in a development environment.
+        run: pip install -e ".[test]"
+
+      - name: Show versions
+        run: python -c "import sys, torch; print(sys.version); print(torch.__version__)"
+
+      - name: Run tests
+        # The GPU half of the suite skips itself on a CPU-only runner; roughly
+        # 220 of the 400 tests remain, including every check against the
+        # original FORTRAN (they read golden data, so no compiler is needed).
+        run: pytest -q

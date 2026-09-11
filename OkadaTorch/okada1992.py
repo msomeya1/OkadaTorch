@@ -1,8 +1,7 @@
 import torch
-from .utils import _UA0, _UB0, _UC0, _UA, _UB, _UC, COMMON0, COMMON1, COMMON2
-
-PI2 = 2.0 * torch.pi
-EPS = 1.0e-6
+from .utils import (_UA0, _UB0, _UC0, _UA, _UB, _UC, PI2, _blank_where,
+                    _dummy_where, _length_scale, _on_fault_edge, _rel_eps, _snap,
+                    fault_geometry, medium_constants, point_geometry)
 
 
 
@@ -11,7 +10,7 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
           compute_strain=True, is_degree=True):
     """
     Displacement and strain at depth due to buried point source 
-    in a semiinfinite medium.
+    in a semi-infinite medium.
 
     Parameters
     ----------
@@ -43,6 +42,8 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
         If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
+        Stations flagged by `IRET` are returned as exactly zero, as in the
+        original FORTRAN.
 
         UX, UY, UZ : torch.Tensor
             Displacement. unit = (unit of potency) / (unit of X,Y,Z,DEPTH)**2
@@ -70,34 +71,25 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
 
     # Initialization
     N_variable = 12 if compute_strain else 3
-    U = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUA = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUB = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUC = [torch.zeros_like(X) for _ in range(N_variable)]
     IRET = torch.zeros_like(X, dtype=torch.int)
 
-    IRET = torch.where(
-        Z > 0.0, 
-        2,
-        IRET
-    )
-    
-    C0 = COMMON0()
-    C0.DCCON0(ALPHA, DIP, is_degree)
+    # Flag the unusable stations up front and hand them a dummy geometry, so
+    # every intermediate stays finite; their output is zeroed at the end.
+    # Masking only the output would leave the gradient NaN -- see `_dummy_where`.
+    IRET = torch.where(Z > 0.0, 2, IRET)                       # above the surface
+    IRET = torch.where(X**2 + Y**2 + (DEPTH + Z)**2 == 0.0,    # station at the source
+                       1, IRET)
+    unusable = IRET != 0
+    X, Y = _dummy_where(unusable, X, Y)
+
+    U = [torch.zeros_like(X) for _ in range(N_variable)]
+
+    C0 = medium_constants(ALPHA, DIP, is_degree)
 
 
     # REAL-SOURCE CONTRIBUTION
     DD = DEPTH + Z
-    C1 = COMMON1()
-    C1.DCCON1(X, Y, DD, C0)
-
-
-    # IN CASE OF SINGULAR (R=0)
-    IRET = torch.where(
-        C1.R==0.0, 
-        1,
-        IRET
-    )
+    C1 = point_geometry(X, Y, DD, C0)
     
     DUA = _UA0(X, Y, DD, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
     if compute_strain:
@@ -112,7 +104,7 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
 
     # IMAGE-SOURCE CONTRIBUTION
     DD = DEPTH - Z
-    C1.DCCON1(X, Y, DD, C0)
+    C1 = point_geometry(X, Y, DD, C0)
 
     DUA = _UA0(X, Y, DD, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
     DUB = _UB0(X, Y, DD, Z, POT1, POT2, POT3, POT4, C0, C1, compute_strain)
@@ -124,6 +116,8 @@ def DC3D0(ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4,
             DU = DU + DUC[I-9]
         U[I] = U[I] + DU
 
+    U = _blank_where(unusable, U)
+
     return U, IRET
     
 
@@ -134,7 +128,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
          compute_strain=True, is_degree=True):
     """
     Displacement and strain at depth due to buried finite fault 
-    in a semiinfinite medium.
+    in a semi-infinite medium.
 
     Parameters
     ----------
@@ -167,6 +161,8 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         [UX, UY, UZ, UXX, UYX, UZX, UXY, UYY, UZY, UXZ, UYZ, UZZ]
         If `False`, U is a list of 3 displacements only:
         [UX, UY, UZ]
+        Stations flagged by `IRET` are returned as exactly zero, as in the
+        original FORTRAN.
 
         UX, UY, UZ : torch.Tensor
             Displacement. unit = (unit of dislocation)
@@ -195,10 +191,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     # Initialization
     N_variable = 12 if compute_strain else 3
     U = [torch.zeros_like(X) for _ in range(N_variable)]
-    DU = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUA = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUB = [torch.zeros_like(X) for _ in range(N_variable)]
-    DUC = [torch.zeros_like(X) for _ in range(N_variable)]
+    DU = [None] * N_variable
     XI = [torch.zeros_like(X) for _ in range(2)]
     ET = [torch.zeros_like(X) for _ in range(2)]
     KXI = [torch.zeros_like(X, dtype=torch.int) for _ in range(2)]
@@ -210,42 +203,26 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         2,
         IRET
     )
+    above_surface = Z > 0.0
 
-    C0 = COMMON0()
-    C0.DCCON0(ALPHA, DIP, is_degree)
+    C0 = medium_constants(ALPHA, DIP, is_degree)
     SD, CD = C0.SD, C0.CD 
 
 
-    XI[0] = torch.where(
-        torch.abs(X - AL1) < EPS,
-        0.0,
-        X - AL1
-    )
-    XI[1] = torch.where(
-        torch.abs(X - AL2) < EPS,
-        0.0,
-        X - AL2
-    )
+    # "On the fault edge" is measured against the size of the fault, so the
+    # test means the same thing in metres and in kilometres.
+    fault_scale = _length_scale(AL2 - AL1, AW2 - AW1, reference=X)
+
+    XI[0] = _snap(X - AL1, fault_scale)
+    XI[1] = _snap(X - AL2, fault_scale)
 
     
     # REAL-SOURCE CONTRIBUTION
     D = DEPTH + Z
     P = Y * CD + D * SD
-    Q = torch.where(
-        torch.abs(Y * SD - D * CD) < EPS,
-        0.0,
-        Y * SD - D * CD
-    )
-    ET[0] = torch.where(
-        torch.abs(P - AW1) < EPS,
-        0.0,
-        P - AW1
-    )
-    ET[1] = torch.where(
-        torch.abs(P - AW2) < EPS,
-        0.0,
-        P - AW2
-    )
+    Q = _snap(Y * SD - D * CD, fault_scale)
+    ET[0] = _snap(P - AW1, fault_scale)
+    ET[1] = _snap(P - AW2, fault_scale)
 
 
     # REJECT SINGULAR CASE
@@ -259,6 +236,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         1,
         IRET
     )
+    unusable_real = torch.logical_or(above_surface, mask1)
 
     
     ## ON NEGATIVE EXTENSION OF FAULT EDGE
@@ -266,33 +244,26 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     R21 = torch.sqrt(XI[1]**2 + ET[0]**2 + Q**2)
     R22 = torch.sqrt(XI[1]**2 + ET[1]**2 + Q**2)
 
+    # R + xi and R + eta vanish on the negative extension of a fault edge; the
+    # meaningful test is against R itself.
+    eps = _rel_eps(X)
     KXI[0] = torch.where(
-        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < eps * R21), 1, 0)
     KXI[1] = torch.where(
-        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < eps * R22), 1, 0)
     KET[0] = torch.where(
-        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < eps * R12), 1, 0)
     KET[1] = torch.where(
-        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < eps * R22), 1, 0)
     
-    C2 = COMMON2()
-
     for K in range(2):
         for J in range(2):
-            C2.DCCON2(XI[J], ET[K], Q, SD, CD, KXI[K], KET[J])
-            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            # Dummy geometry for the unusable stations; see the block above.
+            XI_s, ET_s, Q_s = _dummy_where(unusable_real, XI[J], ET[K], Q)
+            KXI_s, KET_s = [torch.where(unusable_real, torch.zeros_like(k), k)
+                            for k in (KXI[K], KET[J])]
+            C2 = fault_geometry(XI_s, ET_s, Q_s, SD, CD, KXI_s, KET_s)
+            DUA = _UA(XI_s, ET_s, Q_s, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
             if compute_strain:
                 for I in range(0, 10, 3):
@@ -320,21 +291,9 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     # IMAGE-SOURCE CONTRIBUTION
     D = DEPTH - Z
     P = Y * CD + D * SD
-    Q = torch.where(
-        torch.abs(Y * SD - D * CD) < EPS,
-        0.0,
-        Y * SD - D * CD
-    )
-    ET[0] = torch.where(
-        torch.abs(P - AW1) < EPS,
-        0.0,
-        P - AW1
-    )
-    ET[1] = torch.where(
-        torch.abs(P - AW2) < EPS,
-        0.0,
-        P - AW2
-    )
+    Q = _snap(Y * SD - D * CD, fault_scale)
+    ET[0] = _snap(P - AW1, fault_scale)
+    ET[1] = _snap(P - AW2, fault_scale)
 
 
     # REJECT SINGULAR CASE
@@ -348,6 +307,7 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
         1,
         IRET
     )
+    unusable_image = torch.logical_or(above_surface, mask2)
     
     
     ## ON NEGATIVE EXTENSION OF FAULT EDGE
@@ -355,35 +315,29 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
     R21 = torch.sqrt(XI[1]**2 + ET[0]**2 + Q**2)
     R22 = torch.sqrt(XI[1]**2 + ET[1]**2 + Q**2)
     
+    # R + xi and R + eta vanish on the negative extension of a fault edge; the
+    # meaningful test is whether they are negligible next to R itself.
+    eps = _rel_eps(X)
     KXI[0] = torch.where(
-        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(XI[0] < 0.0, R21 + XI[1] < eps * R21), 1, 0)
     KXI[1] = torch.where(
-        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(XI[0] < 0.0, R22 + XI[1] < eps * R22), 1, 0)
     KET[0] = torch.where(
-        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(ET[0] < 0.0, R12 + ET[1] < eps * R12), 1, 0)
     KET[1] = torch.where(
-        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < EPS),
-        1,
-        0
-    )
+        torch.logical_and(ET[0] < 0.0, R22 + ET[1] < eps * R22), 1, 0)
     
 
 
     for K in range(2):
         for J in range(2):
-            C2.DCCON2(XI[J], ET[K], Q, SD, CD, KXI[K], KET[J])
-            DUA = _UA(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
-            DUB = _UB(XI[J], ET[K], Q, DISL1, DISL2, DISL3, C0, C2, compute_strain)
-            DUC = _UC(XI[J], ET[K], Q, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            XI_s, ET_s, Q_s = _dummy_where(unusable_image, XI[J], ET[K], Q)
+            KXI_s, KET_s = [torch.where(unusable_image, torch.zeros_like(k), k)
+                            for k in (KXI[K], KET[J])]
+            C2 = fault_geometry(XI_s, ET_s, Q_s, SD, CD, KXI_s, KET_s)
+            DUA = _UA(XI_s, ET_s, Q_s, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            DUB = _UB(XI_s, ET_s, Q_s, DISL1, DISL2, DISL3, C0, C2, compute_strain)
+            DUC = _UC(XI_s, ET_s, Q_s, Z, DISL1, DISL2, DISL3, C0, C2, compute_strain)
 
             if compute_strain:
                 for I in range(0, 10, 3):
@@ -405,7 +359,8 @@ def DC3D(ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3,
                     U[I] = U[I] - DU[I]
                 else:
                     U[I] = U[I] + DU[I]
-                    
 
+
+    U = _blank_where(IRET != 0, U)
 
     return U, IRET

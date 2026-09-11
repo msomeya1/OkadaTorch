@@ -1,7 +1,7 @@
 # `DC3D0`(_ALPHA, X, Y, Z, DEPTH, DIP, POT1, POT2, POT3, POT4, compute_strain=True, is_degree=True_)
 
 
-Calculate displacement and strain at depth due to buried point source in a semiinfinite medium.
+Calculate displacement and strain at depth due to buried point source in a semi-infinite medium.
 
 ## Inputs
 
@@ -52,6 +52,7 @@ Calculate displacement and strain at depth due to buried point source in a semii
     - Return code. 
     The shape is same as that of `X,Y,Z`, i.e., IRET is returned for each station.
     - `IRET=0` means normal, `IRET=1` means singular, `IRET=2` means positive z was given.
+    - Stations with `IRET != 0` are returned as **exactly zero**, as in the original FORTRAN. Earlier versions of this port raised the flag but kept the computed value, which was usually `NaN`.
 
 
 
@@ -181,7 +182,7 @@ IRET.sum() # -> tensor(0)
 
 # `DC3D`(_ALPHA, X, Y, Z, DEPTH, DIP, AL1, AL2, AW1, AW2, DISL1, DISL2, DISL3, compute_strain=True, is_degree=True_)
 
-Calculate displacement and strain at depth due to buried finite fault in a semiinfinite medium.
+Calculate displacement and strain at depth due to buried finite fault in a semi-infinite medium.
 
 ## Inputs
 
@@ -233,6 +234,7 @@ Calculate displacement and strain at depth due to buried finite fault in a semii
     - Return code. 
     The shape is same as that of `X,Y,Z`, i.e., IRET is returned for each station.
     - `IRET=0` means normal, `IRET=1` means singular, `IRET=2` means positive z was given.
+    - Stations with `IRET != 0` are returned as **exactly zero**, as in the original FORTRAN. Earlier versions of this port raised the flag but kept the computed value, which was usually `NaN`.
 
 
 

@@ -1,8 +1,161 @@
+import functools
+import warnings
+
 import torch
 from torch.func import jacfwd, vmap
 from .okada1985 import SPOINT, SRECTF
 from .okada1992 import DC3D0, DC3D
 from .geometry import setup, rotate_vector, rotate_tensor
+
+
+COORDINATE_AXIS = {"x": 0, "y": 1, "z": 2}   # position of each coordinate in _fn
+
+REQUIRED_COORDS  = ("x", "y")
+OPTIONAL_COORDS  = ("z",)
+REQUIRED_PARAMS  = ("x_fault", "y_fault", "depth", "strike", "dip", "rake", "slip")
+RECTANGLE_PARAMS = ("length", "width")
+# Third and fourth source components; the kernels always supported them, only
+# the wrapper hard-coded them to zero.
+OPTIONAL_PARAMS  = ("opening", "inflation")
+FAULT_ORIGINS    = ("topleft", "center")
+
+KNOWN_COORDS = REQUIRED_COORDS + OPTIONAL_COORDS
+KNOWN_PARAMS = REQUIRED_PARAMS + RECTANGLE_PARAMS + OPTIONAL_PARAMS
+
+# Bounded by the requirement that the elastic energy be positive definite: at
+# nu = 0.5 the 1985 medium constant 1 - 2*nu vanishes and every term collapses
+# to zero rather than raising.
+NU_RANGE = (-1.0, 0.5)
+
+
+def _common_dtype(tensors):
+    """The dtype every input is cast to, using torch's own promotion rule.
+
+    `torch.from_numpy` gives float64 while `torch.tensor(30.0)` gives float32, so
+    a mixture is what the ordinary numpy-to-torch idiom produces.  Promoting
+    cannot lose precision; it was demotion -- the old behaviour, where `coords`
+    decided for everyone -- that silently did.
+    """
+    if not tensors:
+        return torch.get_default_dtype()
+    return functools.reduce(torch.promote_types, (t.dtype for t in tensors))
+
+
+def _validate(coords, params, fault_origin="topleft", nu=0.25):
+    """Check the inputs, normalise them, and report which kernel applies.
+
+    Returns `(coords, params, is_rectangular)` with recognised Python scalars
+    promoted to tensors -- `torch.deg2rad` rejects plain floats, which used to
+    make `strike=30.0` a TypeError from deep inside the kernel.
+
+    Raises `ValueError` rather than using `assert`, which `python -O` removes.
+    """
+    # Unrecognised keys are rejected: the previous contract -- ignore them --
+    # turned 'Z' into a silent switch to the surface formulation and 'widht'
+    # into a silent switch to a point source.
+    for label, mapping, known in (("coords", coords, KNOWN_COORDS),
+                                  ("params", params, KNOWN_PARAMS)):
+        unknown = sorted(k for k in mapping if k not in known)
+        if unknown:
+            raise ValueError(
+                f"'{label}' has unrecognized keys {unknown}. Allowed keys are "
+                f"{list(known)}.")
+
+    missing = [k for k in REQUIRED_COORDS if k not in coords]
+    if missing:
+        raise ValueError(
+            f"'coords' is missing {missing}. Required keys are "
+            f"{list(REQUIRED_COORDS)}; 'z' is optional and selects the "
+            f"Okada (1992) formulation.")
+
+    missing = [k for k in REQUIRED_PARAMS if k not in params]
+    if missing:
+        raise ValueError(
+            f"'params' is missing {missing}. Required keys are "
+            f"{list(REQUIRED_PARAMS)}.")
+
+    supplied = [v for mapping, known in ((coords, KNOWN_COORDS),
+                                        (params, KNOWN_PARAMS))
+                for k, v in mapping.items() if k in known and torch.is_tensor(v)]
+
+    # One device throughout -- unlike dtypes, these cannot be reconciled without
+    # guessing which one the caller meant.  Mixing was accepted silently, and a
+    # 0-dim CPU parameter reaches a CUDA kernel as a scalar, which rounds
+    # differently from the same value held on the device.
+    devices = {v.device for v in supplied}
+    if len(devices) > 1:
+        raise ValueError(
+            f"all inputs must be on one device, got "
+            f"{sorted(str(d) for d in devices)}.")
+    device = devices.pop() if devices else torch.device("cpu")
+
+    used_dtype = _common_dtype(supplied)
+
+    def _cast(mapping, known):
+        def one(v):
+            if torch.is_tensor(v):
+                # `.to` keeps the autograd graph; `torch.as_tensor` is only for
+                # the plain Python numbers, which have none.
+                return v if v.dtype == used_dtype else v.to(used_dtype)
+            return torch.as_tensor(v, dtype=used_dtype, device=device)
+        return {k: (one(v) if k in known else v) for k, v in mapping.items()}
+
+    coords = _cast(coords, KNOWN_COORDS)
+    params = _cast(params, KNOWN_PARAMS)
+
+    if used_dtype in (torch.float32, torch.float16, torch.bfloat16):
+        warnings.warn(
+            f"OkadaTorch is running in {used_dtype}. On a typical fault this "
+            f"costs around 0.2% on the displacements and leaves the gradients "
+            f"good to three or four digits, which is usually fine alongside a "
+            f"neural network. Prefer float64 for a fault that is shallow "
+            f"compared with its own dimensions, or when the gradients "
+            f"themselves are the result.",
+            stacklevel=3)
+
+    shapes = {k: tuple(coords[k].shape) for k in ("x", "y", "z") if k in coords}
+    if len(set(shapes.values())) > 1:
+        raise ValueError(f"all coordinates must have the same shape, got {shapes}.")
+
+    # A rectangle needs both of length/width and a point source needs neither.
+    # Supplying exactly one used to fall through to the point-source branch
+    # without a word, so a typo such as 'widht' silently changed the model.
+    given = [k for k in RECTANGLE_PARAMS if k in params]
+    if len(given) == 1:
+        absent = [k for k in RECTANGLE_PARAMS if k not in params]
+        raise ValueError(
+            f"'params' contains {given} but not {absent}. A rectangular fault "
+            f"needs both of {list(RECTANGLE_PARAMS)}; a point source needs "
+            f"neither. Supplying only one is ambiguous.")
+
+    if "inflation" in params:
+        if len(given) == 2:
+            raise ValueError(
+                "'inflation' is the isotropic (volume-change) component of a "
+                "point source; the rectangular kernels have no such term. Drop "
+                "'inflation', or drop 'length'/'width' to model a point source.")
+        if "z" not in coords:
+            raise ValueError(
+                "'inflation' requires 'z' in 'coords'. The Okada (1985) surface "
+                "routine SPOINT has only three source components (strike-slip, "
+                "dip-slip, tensile); the isotropic one exists only in the (1992) "
+                "routine DC3D0. Pass z = 0 to evaluate that at the surface.")
+
+    if fault_origin not in FAULT_ORIGINS:
+        raise ValueError(
+            f"'fault_origin' must be one of {list(FAULT_ORIGINS)}, "
+            f"got {fault_origin!r}. (It is ignored for a point source, but is "
+            f"still checked so that a typo cannot pass unnoticed.)")
+
+    lo, hi = NU_RANGE
+    if not (lo < float(nu) < hi):
+        raise ValueError(
+            f"Poisson's ratio must satisfy {lo} < nu < {hi}, got {nu!r}. "
+            f"nu = {hi} is the incompressible limit, where the Okada (1985) "
+            f"medium constant 1 - 2*nu vanishes and every term collapses to "
+            f"zero rather than raising.")
+
+    return coords, params, len(given) == 2
 
 
 
@@ -11,12 +164,13 @@ class OkadaWrapper:
     """
     Convenient wrapper class to use functions 
     `SPOINT`, `SRECTF`, `DC3D0` and `DC3D`.
+
+    The class holds no state; it exists to give the three methods a common home.
     """
-    def __init__(self):
-        pass
 
     def compute(self, coords:dict, params:dict, 
-                compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25):
+                compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25,
+                return_iret:bool=False):
         """
         Perform forward computations; given the source parameters, 
         the displacements and/or their spatial derivatives 
@@ -31,14 +185,20 @@ class OkadaWrapper:
         ----------
         coords : dict of torch.Tensor
             `"x"` and `"y"` are required keys, 
-            and `"z"` is optional (all other keys are ignored).
+            and `"z"` is optional; giving it selects the Okada (1992)
+            formulation. Unrecognised keys are rejected.
             Each value must be torch.Tensor of the same shape (`dim` is arbitrary).
 
         params : dict of torch.Tensor
             `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"`
             and `"slip"` are required keys, and `"length"` and `"width"` 
-            are optional (all other keys are ignored).
-            Each value must be torch.Tensor with dim=0 (scaler tensor).
+            are optional and
+            select a rectangular fault (both) or a point source (neither).
+            `"opening"` (tensile / dike opening, in the same units as `"slip"`)
+            and `"inflation"` (isotropic point source; needs `"z"` and no
+            `"length"`/`"width"`) are optional too and default to zero.
+            Unrecognised keys are rejected.
+            Each value must be torch.Tensor with dim=0 (scalar tensor).
 
         compute_strain : bool, default True
             Option to calculate the spatial derivative of the displacement.
@@ -60,6 +220,15 @@ class OkadaWrapper:
         nu : float, default 0.25
             Poisson's ratio.
 
+        return_iret : bool, default False
+            Also return the per-station return code.
+            `IRET=0` means normal, `IRET=1` means singular (the station
+            coincides with the source, or lies on an edge of the fault),
+            `IRET=2` means a positive `z` was given.
+            Stations with `IRET != 0` are returned as exactly zero, following
+            the original FORTRAN; without this flag there is no way to tell
+            those apart from a station whose displacement is genuinely zero.
+
 
         Returns
         -------
@@ -70,18 +239,19 @@ class OkadaWrapper:
             If `False`, return is a list of 3 tensors (displacements only):
             [ux, uy, uz]
             The shape of each tensor is same as that of `coords["x"]` etc.
+
+        iret : torch.Tensor (int), returned only if `return_iret` is `True`
+            Return code, with the same shape as `coords["x"]`.
         """
 
-        assert ("x" in coords) and ("y" in coords), "'coords' requires 'x' and 'y'."
-        assert ("x_fault" in params) and ("y_fault" in params) and ("depth" in params) and \
-            ("strike" in params) and ("dip" in params) and ("rake" in params) and ("slip" in params), \
-            "'params' requires 'x_fault', 'y_fault', 'depth', 'strike', 'dip', 'rake' and 'slip'."
+        coords, params, is_rectangular = _validate(coords, params, fault_origin, nu)
 
         x, y = coords["x"], coords["y"]
-        assert x.shape == y.shape, "shepe of x and y must be same."
         x_fault, y_fault, depth = params["x_fault"], params["y_fault"], params["depth"]
         strike, dip, rake = params["strike"], params["dip"], params["rake"]
         slip = params["slip"]
+        opening = params.get("opening", 0.0)      # tensile / dike opening
+        inflation = params.get("inflation", 0.0)  # isotropic point source
 
 
         # ---- 1. setup ----
@@ -94,42 +264,39 @@ class OkadaWrapper:
         alpha_1992 = 1 / (2.0 * (1 - nu)) # (LAMBDA+MYU)/(LAMBDA+2*MYU), equal to 2/3 if Poisson medium
 
         # ---- 2. model switch ----
-        if ("length" in params) and ("width" in params):
-            # recangular fault 
+        if is_rectangular:
+            # rectangular fault 
             length, width = params["length"], params["width"]
 
             if "z" in coords:
                 # DC3D
                 z = coords["z"]
-                assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
                 if fault_origin == "topleft":
-                    out, _ = DC3D(
+                    out, iret = DC3D(
                         alpha_1992, xx, yy, z, depth, dip, 0.0, length, -width, 0.0, 
-                        u_strike, u_dip, 0.0, compute_strain, is_degree
+                        u_strike, u_dip, opening, compute_strain, is_degree
                     )
-                elif fault_origin == "center":
-                    out, _ = DC3D(
+                else:   # "center"
+                    out, iret = DC3D(
                         alpha_1992, xx, yy, z, depth, dip, -length/2, +length/2, -width/2, +width/2, 
-                        u_strike, u_dip, 0.0, compute_strain, is_degree
+                        u_strike, u_dip, opening, compute_strain, is_degree
                     )
-                else:
-                    raise ValueError("'fault_origin' must be either 'topleft' or 'center'.")
             else:
                 # SRECTF
                 if fault_origin == "topleft":
                     yy = yy + width * cd
                     dep = depth + width * sd
-                    out = SRECTF(
+                    out, iret = SRECTF(
                         alpha_1985, xx, yy, dep, length, width, sd, cd, 
-                        u_strike, u_dip, 0.0, compute_strain
+                        u_strike, u_dip, opening, compute_strain, return_iret=True
                     )
-                elif fault_origin == "center":
+                else:   # "center"
                     xx = xx + length / 2
                     yy = yy + width * cd / 2
                     dep = depth + width * sd / 2
-                    out = SRECTF(
+                    out, iret = SRECTF(
                         alpha_1985, xx, yy, dep, length, width, sd, cd, 
-                        u_strike, u_dip, 0.0, compute_strain
+                        u_strike, u_dip, opening, compute_strain, return_iret=True
                     )
 
         else:
@@ -137,16 +304,15 @@ class OkadaWrapper:
             if "z" in coords:
                 # DC3D0
                 z = coords["z"]
-                assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
-                out, _ = DC3D0(
+                out, iret = DC3D0(
                     alpha_1992, xx, yy, z, depth, dip, 
-                    u_strike, u_dip, 0.0, 0.0, compute_strain, is_degree
+                    u_strike, u_dip, opening, inflation, compute_strain, is_degree
                 )
             else:
                 # SPOINT
-                out = SPOINT(
+                out, iret = SPOINT(
                     alpha_1985, xx, yy, depth, sd, cd, 
-                    u_strike, u_dip, 0.0, compute_strain
+                    u_strike, u_dip, opening, compute_strain, return_iret=True
                 )      
 
     
@@ -166,13 +332,17 @@ class OkadaWrapper:
             uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz = rotate_tensor(
                 uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz, ss, cs
             )
-            return [ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz]
+            result = [ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz]
         else:
             ux, uy, uz = out 
             ux, uy, uz = rotate_vector(
                 ux, uy, uz, ss, cs
             )
-            return [ux, uy, uz]
+            result = [ux, uy, uz]
+
+        # Rotating a zero vector/tensor leaves it zero, so the stations flagged
+        # by `iret` are still exactly zero here.
+        return (result, iret) if return_iret else result
         
 
 
@@ -192,14 +362,20 @@ class OkadaWrapper:
         ----------
         coords : dict of torch.Tensor
             `"x"` and `"y"` are required keys, 
-            and `"z"` is optional (all other keys are ignored).
+            and `"z"` is optional; giving it selects the Okada (1992)
+            formulation. Unrecognised keys are rejected.
             Each value must be torch.Tensor of the same shape (`dim` is arbitrary).
 
         params : dict of torch.Tensor
             `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` 
             and `"slip"` are required keys, and `"length"` and `"width"` 
-            are optional (all other keys are ignored).
-            Each value must be torch.Tensor with dim=0 (scaler tensor).
+            are optional and
+            select a rectangular fault (both) or a point source (neither).
+            `"opening"` (tensile / dike opening, in the same units as `"slip"`)
+            and `"inflation"` (isotropic point source; needs `"z"` and no
+            `"length"`/`"width"`) are optional too and default to zero.
+            Unrecognised keys are rejected.
+            Each value must be torch.Tensor with dim=0 (scalar tensor).
 
         arg : str
             Name of the variable to be differentiated. 
@@ -233,22 +409,12 @@ class OkadaWrapper:
             but each tensor is differentiated by `arg`.
         """
 
-        assert ("x" in coords) and ("y" in coords), f"'coords' requires 'x' and 'y'."
-        assert ("x_fault" in params) and ("y_fault" in params) and ("depth" in params) and \
-            ("strike" in params) and ("dip" in params) and ("rake" in params) and ("slip" in params), \
-            "'params' requires 'x_fault', 'y_fault', 'depth', 'strike', 'dip', 'rake' and 'slip'."
-
+        coords, params, _ = _validate(coords, params, fault_origin, nu)
 
         if ("z" in coords) and (arg in ["x", "y", "z"]):
             x, y, z = coords["x"], coords["y"], coords["z"]
-            assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
             xx, yy, zz = x.flatten(), y.flatten(), z.flatten()
-            if arg=="x":
-                argnum = 0 
-            elif arg=="y":
-                argnum = 1
-            else:
-                argnum = 2
+            argnum = COORDINATE_AXIS[arg]
 
             def _fn(x, y, z):
                 coords2 = {"x": x, "y": y, "z": z}
@@ -261,12 +427,8 @@ class OkadaWrapper:
 
         elif ("z" not in coords) and (arg in ["x", "y"]):
             x, y = coords["x"], coords["y"]
-            assert x.shape == y.shape, "shepe of x and y must be same."
             xx, yy = x.flatten(), y.flatten()
-            if arg=="x":
-                argnum = 0 
-            elif arg=="y":
-                argnum = 1
+            argnum = COORDINATE_AXIS[arg]
 
             def _fn(x, y):
                 coords2 = {"x": x, "y": y}
@@ -288,7 +450,9 @@ class OkadaWrapper:
 
             return jacfwd(_fn)(p)
         else:
-            raise ValueError(f"Invalid arg is specified: '{arg}'.")
+            raise ValueError(
+                f"arg={arg!r} is not differentiable here: it must be a key of "
+                f"'coords' {sorted(coords)} or of 'params' {sorted(params)}.")
             
             
 
@@ -306,14 +470,20 @@ class OkadaWrapper:
         ----------        
         coords : dict of torch.Tensor
             `"x"` and `"y"` are required keys, 
-            and `"z"` is optional (all other keys are ignored).
+            and `"z"` is optional; giving it selects the Okada (1992)
+            formulation. Unrecognised keys are rejected.
             Each value must be torch.Tensor of the same shape (`dim` is arbitrary).
 
         params : dict of torch.Tensor
             `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` 
             and `"slip"` are required keys, and `"length"` and `"width"` 
-            are optional (all other keys are ignored).
-            Each value must be torch.Tensor with dim=0 (scaler tensor).
+            are optional and
+            select a rectangular fault (both) or a point source (neither).
+            `"opening"` (tensile / dike opening, in the same units as `"slip"`)
+            and `"inflation"` (isotropic point source; needs `"z"` and no
+            `"length"`/`"width"`) are optional too and default to zero.
+            Unrecognised keys are rejected.
+            Each value must be torch.Tensor with dim=0 (scalar tensor).
 
         arg1, arg2 : str
             Names of the variable to be differentiated. 
@@ -350,33 +520,29 @@ class OkadaWrapper:
         """
 
 
-        assert ("x" in coords) and ("y" in coords), "'coords' requires 'x' and 'y'."
-        assert ("x_fault" in params) and ("y_fault" in params) and ("depth" in params) and \
-            ("strike" in params) and ("dip" in params) and ("rake" in params) and ("slip" in params), \
-            "'params' requires 'x_fault', 'y_fault', 'depth', 'strike', 'dip', 'rake' and 'slip'."
-        
-        assert (arg1 in coords and arg2 in coords) or (arg1 in params and arg2 in params), \
-            "Both arg1 and arg2 must be variables of the same kind; both must be coords or both must be params."
+        coords, params, _ = _validate(coords, params, fault_origin, nu)
+
+        # Report the *actual* problem: an arg that is simply absent used to be
+        # rejected with the "both must be of the same kind" message, which sent
+        # the reader looking for the wrong mistake.
+        for label, arg in (("arg1", arg1), ("arg2", arg2)):
+            if (arg not in coords) and (arg not in params):
+                raise ValueError(
+                    f"{label}={arg!r} is not a key of 'coords' {sorted(coords)} "
+                    f"or of 'params' {sorted(params)}.")
+        if not ((arg1 in coords and arg2 in coords)
+                or (arg1 in params and arg2 in params)):
+            raise ValueError(
+                f"arg1={arg1!r} and arg2={arg2!r} must both be coordinates or "
+                f"both be source parameters; mixed second derivatives "
+                f"(coordinate x parameter) are not supported.")
 
 
         if ("z" in coords) and (arg1 in ["x", "y", "z"]) and (arg2 in ["x", "y", "z"]):
             x, y, z = coords["x"], coords["y"], coords["z"]
-            assert x.shape == y.shape == z.shape, "shepe of x, y and z must be same."
             xx, yy, zz = x.flatten(), y.flatten(), z.flatten()
 
-            if arg1=="x":
-                argnum1 = 0 
-            elif arg1=="y":
-                argnum1 = 1
-            else:
-                argnum1 = 2
-
-            if arg2=="x":
-                argnum2 = 0 
-            elif arg2=="y":
-                argnum2 = 1
-            else:
-                argnum2 = 2
+            argnum1, argnum2 = COORDINATE_AXIS[arg1], COORDINATE_AXIS[arg2]
 
             def _fn(x, y, z):
                 coords2 = {"x": x, "y": y, "z": z}
@@ -389,18 +555,9 @@ class OkadaWrapper:
 
         elif ("z" not in coords) and (arg1 in ["x", "y"]) and (arg2 in ["x", "y"]):
             x, y = coords["x"], coords["y"]
-            assert x.shape == y.shape, "shepe of x and y must be same."
             xx, yy = x.flatten(), y.flatten()
 
-            if arg1=="x":
-                argnum1 = 0 
-            elif arg1=="y":
-                argnum1 = 1
-
-            if arg2=="x":
-                argnum2 = 0 
-            elif arg2=="y":
-                argnum2 = 1
+            argnum1, argnum2 = COORDINATE_AXIS[arg1], COORDINATE_AXIS[arg2]
 
             def _fn(x, y):
                 coords2 = {"x": x, "y": y}
@@ -438,5 +595,6 @@ class OkadaWrapper:
 
                 return jacfwd(jacfwd(_fn, argnums=1), argnums=0)(p1, p2)
         else:
-            raise ValueError(f"combination of arg '{arg1}' and '{arg2}' is not supported.")
+            raise ValueError(
+                f"the combination arg1={arg1!r}, arg2={arg2!r} is not supported.")
         

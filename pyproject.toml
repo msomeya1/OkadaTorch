@@ -4,14 +4,38 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OkadaTorch"
-version = "0.1.0"
-description = "PyTorch implementation of Okada's formula "
+version = "0.2.0"
+description = "PyTorch implementation of Okada's formulae for displacements and strains due to a point source or a rectangular fault"
 readme = "README.md"
-dependencies = [
-    "torch",
-    "numpy",
-    "matplotlib",
-    "seaborn",
-    "pyproj",
-    "pyro-ppl"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Masayoshi Someya" }]
+keywords = ["okada", "dislocation", "crustal deformation", "geodesy", "pytorch",
+            "automatic differentiation"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3",
 ]
+
+# The library itself imports nothing but torch.  numpy, matplotlib, seaborn,
+# pyproj and pyro-ppl are used only by the example notebooks and the tests, so
+# installing OkadaTorch no longer drags them in.
+dependencies = ["torch"]
+
+[project.optional-dependencies]
+examples = ["numpy", "matplotlib", "seaborn", "pyproj", "pyro-ppl", "cartopy"]
+test = ["pytest", "numpy"]
+
+[project.urls]
+Repository = "https://github.com/msomeya1/OkadaTorch"
+Preprint = "https://arxiv.org/abs/2507.17126"
+
+[tool.setuptools]
+packages = ["OkadaTorch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]

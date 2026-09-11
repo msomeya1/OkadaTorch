@@ -52,14 +52,15 @@ Here, their common arguments, `coords`, `params`, `compute_strain`, `is_degree`,
 
 `coords` is a Python dictionary that stores the coordinates of stations.
 Allowed keys are `"x"`, `"y"`, `"z"` and the corresponding values are `torch.Tensor`s representing the coordinates of the stations. 
-In this coordinate system, x is east, y is north, and z is upward. Note that the values of z must be negative.
+In this coordinate system, x is east, y is north, and z is upward.
+`z` must be non-positive. A positive `z` is **not** an error: the station is flagged with `IRET = 2` and returned as zero, exactly as the original FORTRAN does. See [Return codes](#return-codes).
 
 
 
 ### `params`
 
 `params` is also a Python dictionary that stores the values of source parameters.
-Allowed keys are `"x_fault"`, `"y_fault"`, `"depth"`, `"length"`, `"width"`, `"strike"`, `"dip"`, `"rake"`, `"slip"`.
+Allowed keys are `"x_fault"`, `"y_fault"`, `"depth"`, `"length"`, `"width"`, `"strike"`, `"dip"`, `"rake"`, `"slip"`, `"opening"`, `"inflation"`.
 The explanation of each key is as follows.
 
 - `x_fault, y_fault, depth`: x, y coordinates and depth of the source (depth is positive).
@@ -74,6 +75,17 @@ Note that `strike` is measured clockwise from the north and the fault is assumed
 For a rectangular fault, this indicates the amount of slip, as the name implies.
 For a point source, this indicates the potency (which is equal to seismic moment divided by the elastic constant, also equal to slip amount multiplied by the infinitesimal area of the fault). 
 For ease of implementation, they are treated under the same name `slip`.
+- `opening`: Tensile opening, perpendicular to the fault plane, in the same units as `slip`. 
+This is the third dislocation component of Okada (1985, 1992), used for a dike or a sill. 
+Optional; it defaults to zero, which is the pure shear case.
+- `inflation`: Isotropic volume change of a point source (an inflation source). 
+Only `DC3D0` has this component, so it requires `z` and must not be combined with `length` / `width`. 
+Optional; it defaults to zero.
+
+> [!NOTE]
+> `opening` and `inflation` are the only optional keys; the other nine are
+> required, except that `length` and `width` must be given together or not at all
+> (both = rectangular fault, neither = point source).
 
 
 ### `compute_strain`
@@ -88,7 +100,7 @@ If `True` (default),  `"strike"`, `"dip"` and `"rake"` are in degrees. If `False
 
 
 ### `fault_origin`
-In the case of a rectangular fault, this flag specifies which point the fault location parameter refers to (ignored for a point source).
+In the case of a rectangular fault, this flag specifies which point the fault location parameter refers to. It is ignored for a point source, but is still validated there, so that a typo cannot pass unnoticed.
 - If `fault_origin` is `"topleft"`, then `"x_fault"`, `"y_fault"` and `"depth"` in `params` represent the coordinates of the top left corner of the rectangle.
 - If `fault_origin` is `"center"`, then `"x_fault"`, `"y_fault"` and `"depth"` in `params` represent the coordinates of the rectangle's center.
 
@@ -96,7 +108,11 @@ Other strings cannot be specified.
 
 
 ### `nu`
+
 Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisson medium.
+Must satisfy `-1 < nu < 0.5`; outside that range the elastic
+energy is not positive definite and the formulae degenerate (at `nu = 0.5` the
+Okada 1985 medium constant `1 - 2*nu` vanishes and every term collapses to zero).
 
 
 
@@ -105,23 +121,27 @@ Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisso
 
 
 
-## `OkadaWrapper.compute`(_coords:dict, params:dict, compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25_)
+
+## `OkadaWrapper.compute`(_coords:dict, params:dict, compute_strain:bool=True, is_degree:bool=True, fault_origin:str="topleft", nu:float=0.25, return_iret:bool=False_)
 
 Perform forward computations; given the source parameters, the displacements and/or their spatial derivatives at the stations are calculated.
 
-Currently, multiple station coordinates can be specified, but only one set of source parameters can be specified. 
-If you have multiple sources, you need to call this method multiple times.
+Multiple station coordinates can be specified, but only one set of source parameters can be specified. 
+For multiple sources, map this method over them with `torch.func.vmap` and sum; see [Multiple sources](#multiple-sources).
 
 
 ### Inputs
 
 - `coords` : _dict of torch.Tensor_
-    - `"x"` and `"y"` are required keys, and `"z"` is optional (all other keys are ignored).
+    - `"x"` and `"y"` are required keys, and `"z"` is optional. **Unrecognized keys are rejected** (a `"Z"` typo used to switch silently to the surface formulation).
     Each value must be torch.Tensor of the same shape (`dim` is arbitrary).
 
 - `params` : _dict of torch.Tensor_
-    - `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys, and `"length"` and `"width"` are optional (all other keys are ignored).
-    Each value must be torch.Tensor with dim=0 (scaler tensor).
+    - `"x_fault"`, `"y_fault"`, `"depth"`, `"strike"`, `"dip"`, `"rake"` and `"slip"` are required keys.
+    `"length"` and `"width"` are optional and must be given **together** (both = rectangular fault, neither = point source; supplying only one raises).
+    `"opening"` and `"inflation"` are optional and default to zero; see [`params`](#params).
+    **Unrecognized keys are rejected.**
+    Each value must be a scalar (a 0-dim `torch.Tensor`, or a plain Python number, which is promoted for you).
 
 - `compute_strain` : _bool, default True_
     - Option to calculate the spatial derivative of the displacement.
@@ -163,7 +183,6 @@ If `False`, `u` is a list of 3 displacements only:
 
 The shape of each tensor is same as that of `x,y(,z)`.
 
-<!-- outputの単位については、呼び出されているそれぞれの関数の説明を見てください。 -->
 
 > [!IMPORTANT]
 > In the `compute` method (and of course, `gradient` and `hessian` method), the function to be called is determined by the keys of `coords` and `params`. That is,
@@ -172,14 +191,15 @@ The shape of each tensor is same as that of `x,y(,z)`.
 > - if `x, y, z ∈ coords`, and `x_fault, y_fault, depth, strike, dip, rake, slip ∈ params` but `length, width ∉ params`, then `DC3D0` is called.
 > - if `x, y, z ∈ coords`, and `x_fault, y_fault, depth, length, width, strike, dip, rake, slip ∈ params`, then `DC3D` is called.
 >
-> If the required keys are missing, an error is raised. If unnecessary keys are included, they are ignored.
+> If the required keys are missing, or if unrecognized keys are present, a `ValueError` is raised. See [Errors](#errors).
 
 
 
 
 
 > [!NOTE]
-> There's no `IRET` which existed in `DC3D0` and `DC3D`.
+> By default there is no `IRET`, as in the original `SPOINT`/`SRECTF`.
+> Pass `return_iret=True` to get it; see [Return codes](#return-codes).
 
 
 
@@ -195,6 +215,111 @@ We have prepared a [notebook](../3_OkadaWrapper_compute.ipynb) to test the `comp
 > - Baba, T., Chikasada, N., Imai, K., Tanioka, Y., & Kodaira, S., 2021. 
 Frequency dispersion amplifies tsunamis caused by outer-rise normal faults, Scientific Reports, 11(1), 20064, 
 doi: https://doi.org/10.1038/s41598-021-99536-x.
+
+
+
+
+
+### Multiple sources
+
+
+`compute` takes one source per call: every entry of `params` must be a scalar. 
+However, realistic sources are usually described as a superposition of subfaults, 
+so it is convenient to be able to handle sources in batches.
+
+`torch.func.vmap` maps `compute` over the batch, and the sum over the batch dimension provides the superimposed solution. This stays differentiable, so a slip distribution can be inverted for in the same way a single fault can.
+
+
+Here we show only minimal code examples; see the [notebook](../3_OkadaWrapper_compute.ipynb) example for the full code.
+
+
+Collect the source parameters into a `(n_faults, 9)` tensor, one row per subfault
+in the order `keys` gives, and map over its rows.
+
+```python
+import torch
+from torch.func import vmap
+from OkadaTorch import OkadaWrapper
+
+okada = OkadaWrapper()
+keys = ["x_fault", "y_fault", "depth", "length", "width",
+        "strike", "dip", "rake", "slip"]
+
+def one_fault(values):
+    """Vertical displacement from a single subfault."""
+    return okada.compute(coords, dict(zip(keys, values)), compute_strain=False,
+                         is_degree=True, fault_origin="topleft")[2]
+
+uz = vmap(one_fault)(faults).sum(0)
+```
+
+Here `coords` is the usual dictionary of station coordinates and `faults` is the
+`(n_faults, 9)` tensor, so `vmap(one_fault)(faults)` has shape
+`(n_faults, *coords["x"].shape)`. The `[2]` picks `uz` out of the returned list;
+drop it to keep all three components.
+
+In the notebook, vertical displacement at the surface generated by the 2011 Tohoku-oki earthquake (Fujii et al., 2011) are shown. Two points from that example are worth knowing in advance:
+
+
+> [!NOTE]
+> `vmap` is a convenience, not a requirement: a Python loop over the rows of
+> `faults` gives the same answer to within rounding (5e-15 in that example).
+> What `vmap` buys is one batched call instead of 40 sequential ones.
+> It also maps over every source parameter, not only `slip`, so the geometry of
+> each subfault can be inverted for as well.
+
+**Reference**
+
+- Fujii, Y., Satake, K., Sakai, S., Shinohara, M., & Kanazawa, T. (2011). Tsunami
+  source of the 2011 off the Pacific coast of Tohoku earthquake. Earth, Planets
+  and Space, 63(7), 815-820. https://doi.org/10.5047/eps.2011.06.010
+
+
+
+
+## Return codes
+
+Some station geometries have no solution: the station coincides with the point
+source, or lies exactly on an edge of the rectangle, or sits above the free
+surface. The original FORTRAN detects these and returns zeros with a non-zero
+`IRET`; `OkadaWrapper` does the same, and can hand you the flag:
+
+```python
+out, iret = okada.compute(coords, params, compute_strain=False, return_iret=True)
+```
+
+| `IRET` | meaning |
+| ------ | ------- |
+| 0 | normal |
+| 1 | singular: the station coincides with the source, or lies on a fault edge |
+| 2 | a positive `z` was given |
+
+For flagged stations, outputs are **exactly zero**, so without the flag they are
+indistinguishable from a station whose displacement genuinely vanishes.
+
+
+
+## Errors
+
+Invalid input raises `ValueError` (not `AssertionError`). The checks are:
+
+- required keys present in `coords` and `params`
+- no unrecognized keys in either
+- all coordinates the same shape
+- `"length"` and `"width"` given together or not at all
+- `"inflation"` only for a point source with `"z"`
+- `fault_origin` is `"topleft"` or `"center"` (checked even for a point source,
+  where it is otherwise ignored, so that a typo cannot pass unnoticed)
+- `-1 < nu < 0.5`
+- one device across all inputs
+
+Dtypes need not match: they are promoted to the widest one supplied, as in any
+torch expression. `float32` throughout is accepted but warns.
+
+
+
+
+
 
 
 
@@ -219,7 +344,7 @@ Note that it has been verified that the error is sufficiently small when the str
 If the component of `u` is strain, it means that it is the second-order spatial derivative of the displacement, which cannot be computed with the original Okada's formula, so there is an advantage to computing it with AD.
 
 
-If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg` (i.e., what is allowed as a key in the `params`), the derivative of `u` with respect to parameters is calculated. 
+If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip", "opening", "inflation"` is specified as `arg` (i.e., what is allowed as a key in the `params`), the derivative of `u` with respect to parameters is calculated. 
 These are not provided in the original Okada's formula. 
 You can implement the derivatives with respect to the parameters by calculating them manually, but this is very time-consuming and may produce errors, so using AD is a better choice.
 
@@ -240,7 +365,8 @@ You can implement the derivatives with respect to the parameters by calculating 
     - Name of the variable to be differentiated. 
     This should be a key of `coords` or `params`; 
     if there is no `"z"` in `coords`, you cannot specify `"z"` as `arg`.
-    Similarly, if there is no `"length"` or `"width"` in `params`, you cannot specify `"length"` or `"width"` as `arg`. 
+    Similarly, an optional key of `params` -- `"length"`, `"width"`, `"opening"`, `"inflation"` -- can only be `arg` if you actually supplied it. 
+    Pass `"opening": 0.0` to differentiate at zero opening. 
 
 - `compute_strain` : _bool, default True_
     - same as that of `compute` method. 
@@ -307,7 +433,13 @@ Theoretically, it is possible to differentiate `u` once by a spatial variable an
 
 If `"x", "y" (, "z")` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `coords`), the second-order spatial derivative of `u` is calculated. 
 
-If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip"` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `params`), the second-order derivative of `u` with respect to parameters is calculated. 
+If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "slip", "opening", "inflation"` is specified as `arg1` and `arg2` (i.e., what is allowed as a key in the `params`), the second-order derivative of `u` with respect to parameters is calculated. 
+
+> [!NOTE]
+> `u` is linear in the three dislocation components, so any second derivative
+> taken only among `"slip"`, `"opening"` and `"inflation"` is exactly zero.
+>  Mixed derivatives such as `arg1="slip", arg2="rake"` are not zero, 
+> because `rake` divides `slip` between the strike and dip components.
 
 
 
@@ -324,7 +456,7 @@ If `"x_fault", "y_fault", "depth", "length", "width", "strike", "dip", "rake", "
     - Name of the variable to be differentiated. 
     This should be a key of `coords` or `params`;
     if there is no `"z"` in `coords`, you cannot specify `"z"` as `arg1` or `arg2`.
-    Similarly, if there is no `"length"` or `"width"` in `params`, you cannot specify `"length"` or `"width"` as `arg1` or `arg2`. 
+    Similarly, an optional key of `params` -- `"length"`, `"width"`, `"opening"`, `"inflation"` -- can only be `arg1` or `arg2` if you actually supplied it. 
     
 
 - `compute_strain` : _bool, default True_
