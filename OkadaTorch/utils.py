@@ -318,9 +318,9 @@ def _SRECTG(ALP, XI, ET, Q, SD, CD, DISL1, DISL2, DISL3, compute_strain):
 
     # Near a vertical fault neither formula can supply the derivative (see
     # `_surrogate_grad`), so it is taken from the inclined formula evaluated at a
-    # dip rotated a constant DIP_GRAD_FLOOR away from vertical.  Only the A-terms
-    # need this: they are the only place where 1/CD appears, and therefore the
-    # only place where the 1/CD divergences have to cancel.
+    # dip rotated a constant DIP_GRAD_FLOOR away from vertical.  The A-, B- and
+    # C-terms need this because they are where 1/CD appears, and therefore where
+    # the 1/CD divergences have to cancel.
     ill_conditioned = torch.abs(CD) < DIP_GRAD_FLOOR
     SD_off, CD_off = _dip_offset(SD, CD)
     D_off  = ET * SD_off - Q * CD_off
