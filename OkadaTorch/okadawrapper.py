@@ -22,9 +22,9 @@ FAULT_ORIGINS    = ("topleft", "center")
 KNOWN_COORDS = REQUIRED_COORDS + OPTIONAL_COORDS
 KNOWN_PARAMS = REQUIRED_PARAMS + RECTANGLE_PARAMS + OPTIONAL_PARAMS
 
-# Bounded by the requirement that the elastic energy be positive definite: at
-# nu = 0.5 the 1985 medium constant 1 - 2*nu vanishes and every term collapses
-# to zero rather than raising.
+# Bounded by the requirement that the elastic energy be positive definite.
+# nu = 0.5 is the incompressible limit, where the 1985 medium constant 1 - 2*nu
+# vanishes; the formulae stay finite there, so it would not fail on its own.
 NU_RANGE = (-1.0, 0.5)
 
 
@@ -151,9 +151,9 @@ def _validate(coords, params, fault_origin="topleft", nu=0.25):
     if not (lo < float(nu) < hi):
         raise ValueError(
             f"Poisson's ratio must satisfy {lo} < nu < {hi}, got {nu!r}. "
-            f"nu = {hi} is the incompressible limit, where the Okada (1985) "
-            f"medium constant 1 - 2*nu vanishes and every term collapses to "
-            f"zero rather than raising.")
+            f"This is the range in which the elastic energy is positive "
+            f"definite; nu = {hi} is the incompressible limit, where the "
+            f"Okada (1985) medium constant 1 - 2*nu vanishes.")
 
     return coords, params, len(given) == 2
 

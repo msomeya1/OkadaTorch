@@ -110,9 +110,9 @@ Other strings cannot be specified.
 ### `nu`
 
 Poisson's ratio of the assumed medium. Default value is 0.25, which means Poisson medium.
-Must satisfy `-1 < nu < 0.5`; outside that range the elastic
-energy is not positive definite and the formulae degenerate (at `nu = 0.5` the
-Okada 1985 medium constant `1 - 2*nu` vanishes and every term collapses to zero).
+Must satisfy `-1 < nu < 0.5`, the range in which the elastic energy is positive
+definite. `nu = 0.5` is the incompressible limit, where the Okada (1985) medium
+constant `1 - 2*nu` vanishes.
 
 
 
