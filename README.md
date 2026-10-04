@@ -126,7 +126,31 @@ For example,
 ## Remark 4: Precision
 
 `float32` is the default dtype in `PyTorch` and a reasonable choice when using `OkadaTorch` alongside neural network models. However, output and gradient accuracy are lower than with `float64`, and the problem is more serious for the gradients.
-Therefore, `float64` is recommended when precise gradients are required (e.g., gradient-based optimization) or when dealing with shallow faults (see below). A warning is displayed if `float32` or lower precision is used.
+Therefore, `float64` is recommended when precise gradients are required (e.g., gradient-based optimization), for small faults far from the stations, and for shallow faults (see below). A warning is displayed if `float32` or lower precision is used.
+
+
+### Small faults far from the stations
+
+The displacement due to a rectangular fault is a sum of four terms, one for each corner of the fault. When the fault is small compared with its distance to the stations, these terms nearly cancel, and the `float32` error grows as the fault gets smaller. The largest `float32` error, relative to the largest displacement, for a fault dipping 20° and stations on a 600 km × 600 km grid:
+
+| Fault (length × width, depth) | Error |
+|-|-|
+| 100 km × 50 km, 5 km | 0.04% |
+| 5 km × 5 km, 20 km | 0.1% |
+| 1 km × 1 km, 30 km | 3% |
+
+**Use `float64` for slip inversions with many small patches.**
+
+
+### Nearly vertical faults
+
+Within about 0.06° of vertical ($|\cos(\text{dip})| < 10^{-3}$), the formulae for an inclined fault lose their derivative to a cancellation between two terms in $1/\cos(\text{dip})$, and the formulae for a vertical fault have no dip dependence to differentiate. In this range the gradient is taken from the inclined-fault formulae at a dip rotated $10^{-3}$ rad away from vertical. **All gradients, not only the one with respect to `dip`, are then accurate to only about 0.1% at the surface and 0.01% at depth, and to about 1% right next to the plane of the fault.** The displacements and strains themselves are not affected by this, but they lose digits of their own close to vertical (around $10^{-4}$ at dip = 89.9999°), as in the original FORTRAN programs.
+
+This rarely matters in practice: HMC and NUTS still sample the correct posterior (an inaccurate gradient only lowers the acceptance rate), and gradient-based optimization is affected only when the optimum lies in this range. Workarounds we examined:
+
+- Keep `dip` out of this range, e.g., with an upper bound of 89.9° on the prior or the optimizer, if the fault need not be exactly vertical.
+- Evaluate the inclined-fault formulae at two rotations, $\delta$ and $2\delta$, and use the gradient of $2S(\delta) - S(2\delta)$ (Richardson extrapolation). This makes the gradients accurate to about $10^{-6}$, but it was not adopted because it costs 10-30% more on every evaluation, whatever the dip.
+- Take the derivatives other than the one with respect to `dip` from the formula that computes the value. They become exact at dip = 90°, but are less accurate than the above at, e.g., 89.9999°.
 
 
 ### Faults that reach the surface
@@ -165,6 +189,17 @@ Note that in this mode, the returned tensors are backed by static buffers that a
 This covers the PyTorch implementation in this repository and not the original NIED programs.
 
 ## Version history
+
+### 0.2.1
+
+- **Gradient fixes**
+  - Gradients were wrong at stations on the extension of a fault edge or of the fault plane, where one of the fault coordinates ($\xi$, $\eta$, $q$) is exactly zero. This happens for a whole row of grid stations when the fault corners lie on the grid. Two causes, both fixed:
+    - Arctangents of the form $\arctan(a/b)$ are set to zero where $b = 0$, as in the original FORTRAN, but their derivative there is finite. It was returned as zero; it is now computed through $\arctan(u) = \mathrm{sign}(u)\,\pi/2 - \arctan(1/u)$, an idea taken from [geodef](https://github.com/ericlindsey/geodef).
+    - Coordinates within rounding error of zero are snapped to exactly zero, and the snapping discarded their gradient. It now passes the gradient through.
+- **Documentation**
+  - Remark 4: `float32` errors for small faults far from the stations, and the known limitation of the gradients for nearly vertical faults.
+  - The `float32` warning now mentions small faults.
+- **Added tests** for the gradients at stations on the extension of a fault edge, and for the gradients of nearly vertical faults.
 
 ### 0.2.0
 

@@ -105,10 +105,11 @@ def _validate(coords, params, fault_origin="topleft", nu=0.25):
 
     if used_dtype in (torch.float32, torch.float16, torch.bfloat16):
         warnings.warn(
-            f"OkadaTorch is running in {used_dtype}. On a typical fault this "
-            f"costs around 0.2% on the displacements and leaves the gradients "
+            f"OkadaTorch is running in {used_dtype}. On a large fault this "
+            f"costs up to around 0.2% on the displacements and leaves the gradients "
             f"good to three or four digits, which is usually fine alongside a "
-            f"neural network. Prefer float64 for a fault that is shallow "
+            f"neural network, but a small fault far from the stations can be "
+            f"off by a few percent. Prefer float64 for such a fault, for one that is shallow "
             f"compared with its own dimensions, or when the gradients "
             f"themselves are the result.",
             stacklevel=3)
